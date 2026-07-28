@@ -280,7 +280,8 @@
                             <div class="mt-auto grid grid-cols-2 gap-2">
                                 <button onclick="editScript('${s.id}')" class="bg-dark-800 hover:bg-indigo-600/20 text-slate-300 hover:text-indigo-400 py-2 rounded-lg text-sm border border-slate-700 hover:border-indigo-500/30 transition-all">Editar</button>
                                 <button onclick="loadStudents('${s.id}')" class="bg-dark-800 hover:bg-blue-600/20 text-slate-300 hover:text-blue-400 py-2 rounded-lg text-sm border border-slate-700 hover:border-blue-500/30 transition-all">Alunos</button>
-                                <a href="index.html?script=${s.id}" target="_blank" class="col-span-2 bg-dark-800 hover:bg-green-600/20 text-slate-300 hover:text-green-400 py-2 rounded-lg text-sm border border-slate-700 hover:border-green-500/30 transition-all text-center">Copiar Link / Testar</a>
+                                <button onclick="copyLink('${s.id}')" class="bg-dark-800 hover:bg-green-600/20 text-slate-300 hover:text-green-400 py-2 rounded-lg text-sm border border-slate-700 hover:border-green-500/30 transition-all"><i class="fa-solid fa-copy mr-1"></i>Copiar Link</button>
+                                <a href="index.html?script=${s.id}" target="_blank" class="bg-dark-800 hover:bg-slate-700 text-slate-300 py-2 rounded-lg text-sm border border-slate-700 transition-all text-center leading-loose">Testar</a>
                             </div>
                         </div>
                     `;
@@ -289,6 +290,15 @@
                 container.innerHTML = `<p class="text-red-400">Erro: ${err.message}</p>`;
                 if (err.message.includes('Credenciais') || err.message.includes('setup')) logout();
             }
+        }
+
+        function copyLink(id) {
+            const url = window.location.href.replace('admin.html', 'index.html') + '?script=' + id;
+            navigator.clipboard.writeText(url).then(() => {
+                alert('Link copiado para a área de transferência:\n' + url);
+            }).catch(err => {
+                alert('Erro ao copiar link. Seu navegador bloqueou.');
+            });
         }
 
         async function loadStudents(scriptId) {

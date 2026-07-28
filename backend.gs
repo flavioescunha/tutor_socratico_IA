@@ -57,7 +57,9 @@ function setConfig(key, value) {
 }
 
 function callGeminiAPI(systemPrompt, chatHistory, model, apiKey) {
-  var url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey;
+  var cleanModel = (model || "").trim();
+  var cleanKey = (apiKey || "").trim();
+  var url = "https://generativelanguage.googleapis.com/v1beta/models/" + cleanModel + ":generateContent?key=" + cleanKey;
   
   var geminiContents = [];
   chatHistory.forEach(function(msg) {
@@ -231,16 +233,19 @@ function doPost(e) {
     else if (action === "student_login") {
       var studentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Students");
       var data = studentSheet.getDataRange().getValues();
-      var found = false;
+      var foundName = null;
       for (var i = 1; i < data.length; i++) {
         if (data[i][0].toString() === payload.rm.toString()) {
-          found = true;
+          foundName = data[i][1];
           break;
         }
       }
-      if (!found) {
-        studentSheet.appendRow([payload.rm, payload.name]);
+      
+      if (!foundName) {
+        throw new Error("Seu RM não foi encontrado. O professor precisa cadastrar seu RM na aba Students.");
       }
+      
+      var studentName = foundName;
       
       // Init or Get session
       var sessionSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sessions");
@@ -273,13 +278,13 @@ function doPost(e) {
         
         chatHistory = [{
           role: "assistant", 
-          content: "Olá, " + payload.name + "! Vamos começar o roteiro **" + title + "**. O que você sabe sobre o primeiro assunto?"
+          content: "Olá, " + studentName + "! Vamos começar o roteiro **" + title + "**. O que você sabe sobre o primeiro assunto?"
         }];
         sessionSheet.appendRow([sessionId, payload.rm, payload.script_id, 1, JSON.stringify(chatHistory), "active", ""]);
       }
       
       result.session_id = sessionId;
-      result.name = payload.name;
+      result.name = studentName;
     }
     else if (action === "student_get_chat") {
       var sessionSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sessions");
