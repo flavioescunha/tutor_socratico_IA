@@ -292,15 +292,24 @@ function doPost(e) {
       var studentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Students");
       var data = studentSheet.getDataRange().getValues();
       var foundName = null;
+      
+      var inputName = payload.name || "";
+      var inputRM = payload.rm.toString().trim();
+      
       for (var i = 1; i < data.length; i++) {
-        if (data[i][0].toString() === payload.rm.toString()) {
-          foundName = data[i][1];
+        var dbRM = data[i][0].toString().trim();
+        var dbNameOriginal = data[i][1].toString();
+        // Remove acentos e converte para maiúsculo para comparar
+        var dbNameNormalized = dbNameOriginal.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+        
+        if (dbRM === inputRM && dbNameNormalized === inputName) {
+          foundName = dbNameOriginal; // Retorna o nome original com formatação correta
           break;
         }
       }
       
       if (!foundName) {
-        throw new Error("Seu RM não foi encontrado. O professor precisa cadastrar seu RM na aba Students.");
+        throw new Error("Credenciais inválidas. Verifique seu Nome Completo e RM.");
       }
       
       var studentName = foundName;
