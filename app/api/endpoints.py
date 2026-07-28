@@ -38,8 +38,16 @@ async def login_page(request: Request):
     return templates.TemplateResponse(request=request, name="login.html", context={"request": request})
 
 @router.get("/admin/login", response_class=HTMLResponse)
-async def admin_login_page(request: Request):
+async def admin_login_page(request: Request, db: Session = Depends(get_db)):
+    if db.query(models.Admin).count() == 0:
+        return RedirectResponse(url="/admin/setup", status_code=status.HTTP_302_FOUND)
     return templates.TemplateResponse(request=request, name="admin_login.html", context={"request": request})
+
+@router.get("/admin/setup", response_class=HTMLResponse)
+async def admin_setup_page(request: Request, db: Session = Depends(get_db)):
+    if db.query(models.Admin).count() > 0:
+        return RedirectResponse(url="/admin/login", status_code=status.HTTP_302_FOUND)
+    return templates.TemplateResponse(request=request, name="admin_setup.html", context={"request": request})
 
 @router.get("/admin/dashboard", response_class=HTMLResponse)
 async def admin_dashboard(request: Request, admin: models.Admin = Depends(get_current_admin), db: Session = Depends(get_db)):
@@ -247,7 +255,7 @@ async def api_admin_register(
     # Se estava via dashboard, volta pra lá. Senão (script), retorna json
     if admin:
         return RedirectResponse(url="/admin/dashboard", status_code=status.HTTP_302_FOUND)
-    return {"status": "success", "username": username}
+    return RedirectResponse(url="/admin/login", status_code=status.HTTP_302_FOUND)
 
 @router.post("/api/admin/scripts")
 async def api_admin_create_script(
