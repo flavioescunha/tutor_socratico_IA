@@ -313,6 +313,29 @@ function doPost(e) {
       });
       result.count = count;
     }
+    else if (action === "admin_delete_student") {
+      var studentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Students");
+      if (studentSheet) {
+         var data = studentSheet.getDataRange().getValues();
+         for (var i = data.length - 1; i >= 1; i--) {
+            if (data[i][0].toString() === payload.rm.toString()) {
+               studentSheet.deleteRow(i + 1);
+               break;
+            }
+         }
+      }
+      result.message = "Aluno removido";
+    }
+    else if (action === "admin_delete_all_students") {
+      var studentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Students");
+      if (studentSheet) {
+         var lastRow = studentSheet.getLastRow();
+         if (lastRow > 1) {
+            studentSheet.deleteRows(2, lastRow - 1);
+         }
+      }
+      result.message = "Todos os alunos removidos";
+    }
     
     // --- STUDENT ACTIONS ---
     else if (action === "student_login") {

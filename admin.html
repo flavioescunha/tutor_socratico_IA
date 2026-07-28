@@ -206,6 +206,10 @@
             </div>
 
             <div class="glass-panel rounded-3xl p-6 sm:p-8">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-white">Lista de Alunos</h3>
+                    <button onclick="deleteAllStudents()" class="bg-red-500/10 text-red-400 hover:bg-red-500/20 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"><i class="fa-solid fa-trash mr-2"></i>Excluir Todos</button>
+                </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
@@ -350,6 +354,7 @@
         }
 
         async function loadStudents(scriptId) {
+            window.currentStudentsScriptId = scriptId;
             const tbody = document.getElementById('students-table-body');
             tbody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-slate-400">Carregando...</td></tr>';
             showSection('students');
@@ -392,7 +397,8 @@
                             <td class="py-3 text-slate-300">${itemName}</td>
                             <td class="py-3 font-medium ${statusColor}">${statusText}</td>
                             <td class="py-3">
-                                ${s.status !== 'not_started' ? `<button onclick="alert('Em breve: Ver histórico do chat')" class="text-indigo-400 hover:text-indigo-300 text-xs px-2 py-1 bg-indigo-400/10 rounded">Ver Histórico</button>` : `<span class="text-slate-600 text-xs">-</span>`}
+                                ${s.status !== 'not_started' ? `<button onclick="alert('Histórico agora está na aba Relatórios!')" class="text-indigo-400 hover:text-indigo-300 text-xs px-2 py-1 bg-indigo-400/10 rounded mr-2">Info</button>` : ``}
+                                <button onclick="deleteStudent('${s.rm}')" class="text-red-400 hover:text-red-300 text-xs px-2 py-1 bg-red-400/10 rounded"><i class="fa-solid fa-trash mr-1"></i>Excluir</button>
                             </td>
                         </tr>
                     `;
@@ -450,6 +456,26 @@
                 msg.classList.remove('hidden');
             } finally {
                 btn.innerHTML = '<i class="fa-solid fa-file-import mr-2"></i>Salvar Alunos';
+            }
+        }
+        
+        async function deleteStudent(rm) {
+            if (!confirm(`Deseja realmente excluir o aluno com RM ${rm}?`)) return;
+            try {
+                await fetchGAS({ action: 'admin_delete_student', rm: rm });
+                if (window.currentStudentsScriptId) loadStudents(window.currentStudentsScriptId);
+            } catch (err) {
+                alert(`Erro ao excluir: ${err.message}`);
+            }
+        }
+        
+        async function deleteAllStudents() {
+            if (!confirm(`Deseja realmente excluir TODOS os alunos do sistema? Esta ação não pode ser desfeita.`)) return;
+            try {
+                await fetchGAS({ action: 'admin_delete_all_students' });
+                if (window.currentStudentsScriptId) loadStudents(window.currentStudentsScriptId);
+            } catch (err) {
+                alert(`Erro ao excluir todos: ${err.message}`);
             }
         }
 
