@@ -1,8 +1,8 @@
 // Configure sua URL do Google Apps Script Web App AQUI
-const GAS_URL = "SUA_URL_DO_GOOGLE_APPS_SCRIPT_AQUI";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwZQadzCONPI_lFhPE3Xlsadq5o4Q3SRg0eaWUvdFgLCIkqcTpyIuQYlAyWI_DcxYY6ew/exec";
 
 async function fetchGAS(payload) {
-    if (GAS_URL === "https://script.google.com/macros/s/AKfycbwZQadzCONPI_lFhPE3Xlsadq5o4Q3SRg0eaWUvdFgLCIkqcTpyIuQYlAyWI_DcxYY6ew/exec") {
+    if (GAS_URL === "SUA_URL_DO_GOOGLE_APPS_SCRIPT_AQUI") {
         throw new Error("⚠️ O sistema ainda não foi configurado. Insira a URL do Google Apps Script em config.js");
     }
 
