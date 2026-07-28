@@ -9,7 +9,6 @@ function setupSheets() {
         s.appendRow(["key", "value"]);
         s.appendRow(["admin_user", ""]);
         s.appendRow(["admin_pass", ""]);
-        s.appendRow(["llm_model", "gemini-1.5-flash"]);
         s.appendRow(["llm_api_key", ""]);
       } else if (name === "Scripts") {
         s.appendRow(["id", "title", "subject", "attempts_limit"]);
@@ -56,7 +55,7 @@ function setConfig(key, value) {
   sheet.appendRow([key, value]);
 }
 
-function callGeminiAPI(systemPrompt, chatHistory, primaryModel, apiKey) {
+function callGeminiAPI(systemPrompt, chatHistory, apiKey) {
   var cleanKey = (apiKey || "").trim();
   
   var geminiContents = [];
@@ -86,21 +85,12 @@ function callGeminiAPI(systemPrompt, chatHistory, primaryModel, apiKey) {
     "muteHttpExceptions": true
   };
   
-  // 1. Tenta o modelo principal primeiro
-  var mainUrl = "https://generativelanguage.googleapis.com/v1beta/models/" + (primaryModel || "").trim() + ":generateContent?key=" + cleanKey;
-  var response = UrlFetchApp.fetch(mainUrl, options);
-  
-  if (response.getResponseCode() === 200) {
-    var json = JSON.parse(response.getContentText());
-    return JSON.parse(json.candidates[0].content.parts[0].text);
-  }
-  
-  // 2. Se falhou, busca dinamicamente a lista de modelos suportados
+  // Busca dinamicamente a lista de modelos suportados
   var listUrl = "https://generativelanguage.googleapis.com/v1beta/models?key=" + cleanKey;
   var listResp = UrlFetchApp.fetch(listUrl, { "method": "get", "muteHttpExceptions": true });
   
   if (listResp.getResponseCode() !== 200) {
-    throw new Error("Erro da API Gemini (Principal falhou e busca de fallback falhou). Detalhe: " + response.getContentText());
+    throw new Error("Erro ao listar modelos da API Gemini. Detalhe: " + listResp.getContentText());
   }
   
   var listJson = JSON.parse(listResp.getContentText());
@@ -108,23 +98,18 @@ function callGeminiAPI(systemPrompt, chatHistory, primaryModel, apiKey) {
   if (listJson.models) {
     listJson.models.forEach(function(m) {
       if (m.supportedGenerationMethods && m.supportedGenerationMethods.indexOf("generateContent") !== -1) {
-        var name = m.name.replace("models/", "");
-        if (name !== (primaryModel || "").trim()) {
-           validModels.push(name);
-        }
+        validModels.push(m.name.replace("models/", ""));
       }
     });
   }
   
-  // O usuário sugeriu 60% de baixo pra cima (ou seja, pular os primeiros 40% do topo)
+  // Pula os primeiros 40% do topo (inicia em 60% de baixo pra cima)
   var startIndex = Math.floor(validModels.length * 0.4);
-  
-  // Monta a lista de fallback priorizando a partir de 60% de baixo pra cima, depois o resto
   var fallbackModels = validModels.slice(startIndex).concat(validModels.slice(0, startIndex));
   
-  var lastError = response.getContentText();
+  var lastError = "";
   
-  // 3. Tenta os modelos do fallback dinâmico
+  // Tenta os modelos do fallback dinâmico
   for (var i = 0; i < fallbackModels.length; i++) {
     var fallbackUrl = "https://generativelanguage.googleapis.com/v1beta/models/" + fallbackModels[i] + ":generateContent?key=" + cleanKey;
     var fbResp = UrlFetchApp.fetch(fallbackUrl, options);
@@ -137,7 +122,7 @@ function callGeminiAPI(systemPrompt, chatHistory, primaryModel, apiKey) {
     }
   }
   
-  throw new Error("Erro da API Gemini após esgotar todos os fallbacks dinâmicos. Último erro: " + lastError);
+  throw new Error("Erro da API Gemini após esgotar todos os modelos. Último erro: " + lastError);
 }
 
 function doPost(e) {
@@ -172,36 +157,13 @@ function doPost(e) {
     }
     else if (action === "admin_get_settings") {
       var config = getConfig();
-      result.llm_model = config.llm_model;
       result.llm_api_key = config.llm_api_key;
     }
     else if (action === "admin_save_settings") {
-      setConfig("llm_model", payload.llm_model);
       if (payload.llm_api_key) setConfig("llm_api_key", payload.llm_api_key);
       if (payload.admin_user) setConfig("admin_user", payload.admin_user);
       if (payload.admin_pass) setConfig("admin_pass", payload.admin_pass);
       result.message = "Configurações salvas";
-    }
-    else if (action === "admin_list_models") {
-      var config = getConfig();
-      if (!config.llm_api_key) throw new Error("Chave de API não configurada.");
-      var url = "https://generativelanguage.googleapis.com/v1beta/models?key=" + config.llm_api_key.trim();
-      var options = { "method": "get", "muteHttpExceptions": true };
-      var response = UrlFetchApp.fetch(url, options);
-      var json = JSON.parse(response.getContentText());
-      if (response.getResponseCode() !== 200) {
-        throw new Error("Erro ao listar modelos: " + (json.error ? json.error.message : response.getContentText()));
-      }
-      var models = [];
-      if (json.models) {
-        json.models.forEach(function(m) {
-          // Filter out models that don't support generateContent
-          if (m.supportedGenerationMethods && m.supportedGenerationMethods.indexOf("generateContent") !== -1) {
-            models.push(m.name.replace("models/", ""));
-          }
-        });
-      }
-      result.models = models;
     }
     else if (action === "admin_save_script") {
       var scriptSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Scripts");
@@ -485,7 +447,7 @@ function doPost(e) {
       systemPrompt += "[INSTRUÇÕES]\n1. Se o aluno compreendeu, status = 'aprovado'.\n2. Se não, status = 'refazer'.\n";
       
       // Call LLM
-      var llmResp = callGeminiAPI(systemPrompt, chatHistory, config.llm_model, config.llm_api_key);
+      var llmResp = callGeminiAPI(systemPrompt, chatHistory, config.llm_api_key);
       
       // Append assistant message
       chatHistory.push({role: "assistant", content: llmResp.resposta_chat});

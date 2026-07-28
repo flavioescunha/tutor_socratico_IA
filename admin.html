@@ -137,17 +137,6 @@
                 <div id="settings-msg" class="hidden mb-4 p-3 bg-green-500/20 text-green-400 rounded text-sm">Salvo com sucesso!</div>
                 <form id="form-settings" class="space-y-5">
                     <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-2 flex justify-between items-center">
-                            <span>Modelo Exato (ex: gemini-2.5-flash)</span>
-                            <button type="button" id="btn-list-models" class="text-primary-400 hover:text-primary-300 text-xs font-semibold py-1 px-2 bg-dark-700 rounded">
-                                <i id="icon-list-models" class="fa-solid fa-cloud-arrow-down mr-1"></i> Buscar na API
-                            </button>
-                        </label>
-                        <select id="set-model" required class="block w-full px-4 py-3 bg-dark-800 border border-slate-700 rounded-xl text-white font-mono text-sm">
-                            <option value="gemini-1.5-flash-latest">gemini-1.5-flash-latest</option>
-                        </select>
-                    </div>
-                    <div>
                         <label class="block text-sm font-medium text-slate-300 mb-2">Sua Chave de API (Secret Key)</label>
                         <input type="password" id="set-key" class="block w-full px-4 py-3 bg-dark-800 border border-slate-700 rounded-xl text-white font-mono text-sm" placeholder="Deixe em branco para não alterar">
                     </div>
@@ -486,49 +475,6 @@
         async function loadSettings() {
             try {
                 const data = await fetchGAS({ action: 'admin_get_settings' });
-                
-                const modelSelect = document.getElementById('set-model');
-                
-                // Se o modelo salvo não estiver na lista inicial, adiciona ele para não quebrar a interface
-                if (data.llm_model && ![...modelSelect.options].some(o => o.value === data.llm_model)) {
-                    let opt = document.createElement('option');
-                    opt.value = data.llm_model;
-                    opt.text = data.llm_model;
-                    modelSelect.appendChild(opt);
-                }
-                
-                modelSelect.value = data.llm_model || 'gemini-1.5-flash-latest';
-                
-                // Fetch models button listener
-                document.getElementById('btn-list-models').onclick = async () => {
-                    const btnIcon = document.getElementById('icon-list-models');
-                    btnIcon.className = "fa-solid fa-spinner fa-spin mr-1";
-                    try {
-                        const mData = await fetchGAS({action: 'admin_list_models'});
-                        const selectEl = document.getElementById('set-model');
-                        const currentVal = selectEl.value;
-                        selectEl.innerHTML = ''; // Limpa as opções atuais
-                        
-                        mData.models.forEach(model => {
-                            let opt = document.createElement('option');
-                            opt.value = model;
-                            opt.text = model;
-                            selectEl.appendChild(opt);
-                        });
-                        
-                        // Tenta manter o valor anterior selecionado, se ele existir na nova lista
-                        if([...selectEl.options].some(o => o.value === currentVal)) {
-                            selectEl.value = currentVal;
-                        }
-                        
-                        alert('Modelos carregados! Clique na caixa para escolher o modelo desejado.');
-                        selectEl.focus();
-                    } catch (e) {
-                        alert('Erro ao buscar modelos. Certifique-se que sua Chave de API está configurada e salva.');
-                    } finally {
-                        btnIcon.className = "fa-solid fa-cloud-arrow-down mr-1";
-                    }
-                };
             } catch (e) {}
         }
         
@@ -540,7 +486,6 @@
             try {
                 await fetchGAS({
                     action: 'admin_save_settings',
-                    llm_model: document.getElementById('set-model').value,
                     llm_api_key: document.getElementById('set-key').value
                 });
                 const msg = document.getElementById('settings-msg');
