@@ -629,6 +629,7 @@ function doPost(e) {
     }
     else if (action === "admin_get_reports") {
       // Validate token
+      var config = getConfig();
       var auth = (payload.token === config.admin_user + ":" + config.admin_pass) || payload.token === "temp";
       if (!auth) throw new Error("Credenciais inválidas");
 
