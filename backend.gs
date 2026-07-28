@@ -392,29 +392,36 @@ function doPost(e) {
       var sessionId = null;
       var chatHistory = [];
       var currentOrder = 1;
+      var sessionStatus = "";
+      var sessionCount = 0;
       
+      // Encontra a ÚLTIMA sessão e conta quantas existem
       for (var j = 1; j < sData.length; j++) {
         if (sData[j][1].toString() === payload.rm.toString() && sData[j][2].toString() === payload.script_id.toString()) {
+          sessionCount++;
           sessionId = sData[j][0];
           currentOrder = parseInt(sData[j][3]);
           chatHistory = JSON.parse(sData[j][4] || "[]");
+          sessionStatus = sData[j][5];
+        }
+      }
+      
+      // Busca informações do roteiro (título e limite de tentativas)
+      var scriptSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Scripts");
+      var scriptData = scriptSheet.getDataRange().getValues();
+      var title = "Roteiro";
+      var attemptsLimit = 3;
+      for (var k = 1; k < scriptData.length; k++) {
+        if (scriptData[k][0].toString() === payload.script_id.toString()) {
+          title = scriptData[k][1];
+          attemptsLimit = parseInt(scriptData[k][3]) || 3;
           break;
         }
       }
       
-      if (!sessionId) {
-        sessionId = new Date().getTime().toString();
-        // Get script title for greeting
-        var scriptSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Scripts");
-        var scriptData = scriptSheet.getDataRange().getValues();
-        var title = "Roteiro";
-        for (var k = 1; k < scriptData.length; k++) {
-          if (scriptData[k][0].toString() === payload.script_id.toString()) {
-            title = scriptData[k][1];
-            break;
-          }
-        }
-        
+      // Se não tem sessão, OU se a última está concluída e ele ainda tem tentativas do script sobrando:
+      if (!sessionId || (sessionStatus === "completed" && sessionCount < attemptsLimit)) {
+        sessionId = new Date().getTime().toString() + "_" + sessionCount;
         chatHistory = [{
           role: "assistant", 
           content: "Olá, " + studentName + "! Vamos começar o roteiro **" + title + "**. O que você sabe sobre o primeiro assunto?"
