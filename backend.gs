@@ -271,16 +271,6 @@ function doPost(e) {
             allStudents[rm].status = data[i][5];
             allStudents[rm].attempts = attempts;
             allStudents[rm].final_grade = data[i][6];
-          } else {
-             allStudents[rm] = {
-                rm: rm,
-                name: "Desconhecido",
-                session_id: data[i][0],
-                current_item_order: data[i][3],
-                status: data[i][5],
-                attempts: attempts,
-                final_grade: data[i][6]
-             };
           }
         }
       }
@@ -315,6 +305,29 @@ function doPost(e) {
     }
     else if (action === "admin_delete_student") {
       var studentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Students");
+      var sessionSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sessions");
+      var logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Logs");
+      var sessionsToDelete = [];
+      
+      if (sessionSheet) {
+         var sData = sessionSheet.getDataRange().getValues();
+         for (var j = sData.length - 1; j >= 1; j--) {
+            if (sData[j][1].toString() === payload.rm.toString()) {
+               sessionsToDelete.push(sData[j][0].toString());
+               sessionSheet.deleteRow(j + 1);
+            }
+         }
+      }
+      
+      if (logSheet && sessionsToDelete.length > 0) {
+         var lData = logSheet.getDataRange().getValues();
+         for (var k = lData.length - 1; k >= 1; k--) {
+            if (sessionsToDelete.indexOf(lData[k][0].toString()) !== -1) {
+               logSheet.deleteRow(k + 1);
+            }
+         }
+      }
+      
       if (studentSheet) {
          var data = studentSheet.getDataRange().getValues();
          for (var i = data.length - 1; i >= 1; i--) {
@@ -324,17 +337,26 @@ function doPost(e) {
             }
          }
       }
-      result.message = "Aluno removido";
+      result.message = "Aluno, sessões e logs removidos";
     }
     else if (action === "admin_delete_all_students") {
       var studentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Students");
+      var sessionSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sessions");
+      var logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Logs");
+      
       if (studentSheet) {
          var lastRow = studentSheet.getLastRow();
-         if (lastRow > 1) {
-            studentSheet.deleteRows(2, lastRow - 1);
-         }
+         if (lastRow > 1) studentSheet.deleteRows(2, lastRow - 1);
       }
-      result.message = "Todos os alunos removidos";
+      if (sessionSheet) {
+         var lastRowS = sessionSheet.getLastRow();
+         if (lastRowS > 1) sessionSheet.deleteRows(2, lastRowS - 1);
+      }
+      if (logSheet) {
+         var lastRowL = logSheet.getLastRow();
+         if (lastRowL > 1) logSheet.deleteRows(2, lastRowL - 1);
+      }
+      result.message = "Todos os alunos, sessões e logs foram removidos";
     }
     
     // --- STUDENT ACTIONS ---
