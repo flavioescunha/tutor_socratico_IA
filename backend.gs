@@ -11,7 +11,7 @@ function setupSheets() {
         s.appendRow(["admin_pass", ""]);
         s.appendRow(["llm_api_key", ""]);
       } else if (name === "Scripts") {
-        s.appendRow(["id", "title", "subject", "attempts_limit"]);
+        s.appendRow(["id", "title", "subject", "attempts_limit", "initial_instructions"]);
       } else if (name === "ScriptItems") {
         s.appendRow(["id", "script_id", "sequence_order", "description"]);
       } else if (name === "Students") {
@@ -174,15 +174,22 @@ function doPost(e) {
       var scriptId = payload.id || new Date().getTime().toString();
       
       if (!payload.id) {
-        scriptSheet.appendRow([scriptId, payload.title, payload.subject, payload.attempts_limit]);
+        scriptSheet.appendRow([scriptId, payload.title, payload.subject, payload.attempts_limit, payload.initial_instructions || ""]);
       } else {
         // Edit existing...
         var data = scriptSheet.getDataRange().getValues();
+        var headers = data[0] || [];
+        var titleCol = headers.indexOf("title") > -1 ? headers.indexOf("title") + 1 : 2;
+        var subCol = headers.indexOf("subject") > -1 ? headers.indexOf("subject") + 1 : 3;
+        var attCol = headers.indexOf("attempts_limit") > -1 ? headers.indexOf("attempts_limit") + 1 : 4;
+        var instCol = headers.indexOf("initial_instructions") > -1 ? headers.indexOf("initial_instructions") + 1 : 5;
+        
         for(var i=1; i<data.length; i++) {
            if(data[i][0].toString() === scriptId.toString()) {
-             scriptSheet.getRange(i+1, 2).setValue(payload.title);
-             scriptSheet.getRange(i+1, 3).setValue(payload.subject);
-             scriptSheet.getRange(i+1, 4).setValue(payload.attempts_limit);
+             scriptSheet.getRange(i+1, titleCol).setValue(payload.title);
+             scriptSheet.getRange(i+1, subCol).setValue(payload.subject);
+             scriptSheet.getRange(i+1, attCol).setValue(payload.attempts_limit);
+             scriptSheet.getRange(i+1, instCol).setValue(payload.initial_instructions || "");
            }
         }
         // Safely remove old items by rewriting the sheet
@@ -222,10 +229,23 @@ function doPost(e) {
     else if (action === "admin_get_script") {
       var scriptSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Scripts");
       var data = scriptSheet.getDataRange().getValues();
+      var headers = data[0] || [];
+      var tIdx = headers.indexOf("title") > -1 ? headers.indexOf("title") : 1;
+      var sIdx = headers.indexOf("subject") > -1 ? headers.indexOf("subject") : 2;
+      var aIdx = headers.indexOf("attempts_limit") > -1 ? headers.indexOf("attempts_limit") : 3;
+      var iIdx = headers.indexOf("initial_instructions") > -1 ? headers.indexOf("initial_instructions") : 4;
+      
       var scriptObj = null;
       for (var i = 1; i < data.length; i++) {
         if(data[i][0].toString() === payload.id.toString()) {
-           scriptObj = {id: data[i][0], title: data[i][1], subject: data[i][2], attempts_limit: data[i][3], items: []};
+           scriptObj = {
+             id: data[i][0], 
+             title: data[i][tIdx], 
+             subject: data[i][sIdx], 
+             attempts_limit: data[i][aIdx], 
+             initial_instructions: data[i][iIdx] || "", 
+             items: []
+           };
         }
       }
       var itemSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("ScriptItems");
@@ -444,6 +464,18 @@ function doPost(e) {
           var scriptId = sData[j][2];
           result.current_step = parseInt(sData[j][3]);
           
+          var scriptSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Scripts");
+          var scriptData = scriptSheet.getDataRange().getValues();
+          var scriptHeaders = scriptData[0] || [];
+          var instIdx = scriptHeaders.indexOf("initial_instructions") > -1 ? scriptHeaders.indexOf("initial_instructions") : 4;
+          
+          for (var k = 1; k < scriptData.length; k++) {
+            if (scriptData[k][0].toString() === scriptId.toString()) {
+               result.initial_instructions = scriptData[k][instIdx] || "";
+               break;
+            }
+          }
+          
           var itemSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("ScriptItems");
           var itData = itemSheet.getDataRange().getValues();
           var totalSteps = 0;
@@ -509,6 +541,7 @@ function doPost(e) {
       systemPrompt += "- Faça perguntas abertas e reflexivas. Jamais faça perguntas de 'sim/não' ou que permitam respostas secas. Exija (e induza) o aluno a elaborar a resposta na forma de um texto/parágrafo coeso, com começo, meio e fim.\n";
       systemPrompt += "- A 'justificativa_nota' deve ser curta e objetiva, contendo no MÁXIMO 240 caracteres.\n";
       systemPrompt += "- Avalie se o aluno demonstrou compreensão do [OBJETIVO DO ITEM ATUAL].\n";
+      systemPrompt += "- A 'nota_etapa' DEVE OBRIGATORIAMENTE ser um número de 0 a 10 representando a avaliação do desempenho do aluno. Nunca coloque a resposta do exercício neste campo!\n";
       
       if (nextItemDesc) {
          systemPrompt += "- Se o aluno NÃO compreendeu, continue focado no [OBJETIVO DO ITEM ATUAL].\n";
@@ -581,6 +614,14 @@ function doPost(e) {
          var colNota = 8 + (currentOrder - 1) * 2;
          var colJust = 9 + (currentOrder - 1) * 2;
          var justTxt = (llmResp.justificativa_nota || "");
+         
+         var numNota = parseFloat((llmResp.nota_etapa || "0").toString().replace(",", "."));
+         if (!isNaN(numNota)) {
+             if (numNota > 10) numNota = 10;
+             if (numNota < 0) numNota = 0;
+             llmResp.nota_etapa = numNota.toString();
+         }
+         
          sessionSheet.getRange(rowIndex, colNota).setValue(llmResp.nota_etapa || "");
          sessionSheet.getRange(rowIndex, colJust).setValue(justTxt);
 
@@ -590,6 +631,10 @@ function doPost(e) {
          for(var n=1; n<finalLogs.length; n++) {
             if(finalLogs[n][0].toString() === payload.session_id.toString()) {
                 var nota = parseFloat(finalLogs[n][4].toString().replace(",", "."));
+                if (!isNaN(nota)) {
+                   if (nota > 10) nota = 10;
+                   if (nota < 0) nota = 0;
+                }
                 var stepId = finalLogs[n][2].toString();
                 if(!isNaN(nota)) {
                    gradesByStep[stepId] = nota;
