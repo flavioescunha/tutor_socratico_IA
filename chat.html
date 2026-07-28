@@ -61,7 +61,10 @@
                         <p id="student-name" class="text-sm font-medium text-white"></p>
                         <p class="text-xs text-slate-400">Aluno</p>
                     </div>
-                    <button onclick="logout()" class="w-10 h-10 bg-dark-800 hover:bg-red-500/20 hover:text-red-400 rounded-xl flex items-center justify-center text-slate-400 transition-colors border border-slate-700 hover:border-red-500/30">
+                    <button onclick="restartAttempt()" class="w-10 h-10 bg-dark-800 hover:bg-primary-500/20 hover:text-primary-400 rounded-xl flex items-center justify-center text-slate-400 transition-colors border border-slate-700 hover:border-primary-500/30" title="Iniciar Nova Tentativa">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+                    <button onclick="logout()" class="w-10 h-10 bg-dark-800 hover:bg-red-500/20 hover:text-red-400 rounded-xl flex items-center justify-center text-slate-400 transition-colors border border-slate-700 hover:border-red-500/30" title="Sair">
                         <i class="fa-solid fa-right-from-bracket"></i>
                     </button>
                 </div>
@@ -213,6 +216,34 @@
             
             chatContainer.appendChild(div);
             chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+        }
+
+        function logout() {
+            sessionStorage.clear();
+            window.location.href = "https://script.google.com/macros/s/AKfycby12ioVbLmPOxgzLjdgLgrHLEMHrsS7NLQyOzB9NT-b6wONyJHRPpL6opiqPrvjti9j1Q/exec";
+        }
+
+        async function restartAttempt() {
+            if (!confirm("Deseja iniciar uma nova tentativa do zero? Todo o seu progresso atual nesta tentativa será mantido nos registros do professor, e você começará uma nova tentativa limpa.")) return;
+            
+            try {
+                const res = await fetchGAS({
+                    action: 'student_login',
+                    name: currentName,
+                    rm: currentRm,
+                    script_id: currentScriptId,
+                    force_restart: true
+                });
+                
+                if (res.error) {
+                    alert(res.error);
+                } else {
+                    sessionStorage.setItem("session_id", res.session_id);
+                    window.location.reload();
+                }
+            } catch (err) {
+                alert("Erro ao reiniciar tentativa.");
+            }
         }
 
         async function loadChat() {

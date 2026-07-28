@@ -419,8 +419,8 @@ function doPost(e) {
         }
       }
       
-      // Se não tem sessão, OU se a última está concluída e ele ainda tem tentativas do script sobrando:
-      if (!sessionId || (sessionStatus === "completed" && sessionCount < attemptsLimit)) {
+      // Se não tem sessão, OU se a última está concluída (ou via force_restart) e ele ainda tem tentativas do script sobrando:
+      if (!sessionId || ((sessionStatus === "completed" || payload.force_restart) && sessionCount < attemptsLimit)) {
         sessionId = new Date().getTime().toString() + "_" + sessionCount;
         chatHistory = [{
           role: "assistant", 
