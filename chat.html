@@ -27,6 +27,7 @@
         .typing-dot:nth-child(1) { animation-delay: -0.32s; }
         .typing-dot:nth-child(2) { animation-delay: -0.16s; }
         @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+        @keyframes shimmer { 100% { transform: translateX(100%); } }
         .markdown-body p { margin-bottom: 0.5rem; }
         .markdown-body strong { font-weight: 600; color: #fff; }
         
@@ -84,15 +85,45 @@
     </header>
 
     <!-- Instruções Iniciais Overlay -->
-    <div id="initial-instructions-overlay" class="absolute inset-0 z-50 bg-dark-900/95 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 hidden">
-        <div class="glass-panel w-full max-w-2xl rounded-3xl p-6 sm:p-8 flex flex-col max-h-[90vh]">
-            <h2 class="text-2xl font-bold text-white mb-4 flex items-center"><i class="fa-solid fa-list-check text-primary-500 mr-3"></i> Instruções do Professor</h2>
-            <div class="text-slate-300 text-sm sm:text-base overflow-y-auto custom-scrollbar flex-grow bg-dark-800/50 p-5 rounded-xl border border-slate-700/50 mb-6 markdown-body">
-                <div id="initial-instructions-content" class="whitespace-pre-wrap"></div>
+    <div id="initial-instructions-overlay" class="absolute inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 hidden">
+        <!-- Animated Background Gradient -->
+        <div class="absolute inset-0 bg-dark-900/80 backdrop-blur-xl"></div>
+        <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-primary-600/20 rounded-full blur-[100px] animate-pulse"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-600/20 rounded-full blur-[100px] animate-pulse" style="animation-delay: 2s;"></div>
+        
+        <!-- Modal Content -->
+        <div class="relative w-full max-w-3xl rounded-[2.5rem] p-[2px] bg-gradient-to-br from-slate-700/50 via-slate-800/20 to-primary-900/50 shadow-2xl animate-[messageIn_0.6s_ease-out]">
+            <div class="glass-panel rounded-[calc(2.5rem-2px)] p-8 sm:p-10 flex flex-col max-h-[85vh] bg-dark-900/90 relative overflow-hidden">
+                <!-- Decorative Top Banner -->
+                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary-400 via-indigo-500 to-purple-500"></div>
+                
+                <!-- Header -->
+                <div class="flex items-center space-x-5 mb-8">
+                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 flex-shrink-0 animate-[pulse_3s_infinite]">
+                        <i class="fa-solid fa-graduation-cap text-3xl text-white"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-3xl font-display font-bold text-white tracking-tight">Antes de começar...</h2>
+                        <p class="text-slate-400 mt-1">Leia com atenção as instruções do seu professor.</p>
+                    </div>
+                </div>
+                
+                <!-- Content -->
+                <div class="text-slate-200 text-base sm:text-lg overflow-y-auto custom-scrollbar flex-grow bg-dark-800/40 p-6 sm:p-8 rounded-2xl border border-slate-700/30 mb-8 leading-relaxed shadow-inner relative">
+                    <div class="absolute top-4 left-4 text-primary-500/20 pointer-events-none">
+                        <i class="fa-solid fa-quote-left text-4xl"></i>
+                    </div>
+                    <div id="initial-instructions-content" class="whitespace-pre-wrap font-medium relative z-10 pl-2"></div>
+                </div>
+                
+                <!-- Action -->
+                <button onclick="startChatFromInstructions()" class="group relative w-full bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white font-bold text-lg py-5 rounded-2xl transition-all duration-300 transform hover:-translate-y-1 shadow-[0_10px_40px_-10px_rgba(79,70,229,0.7)] flex justify-center items-center flex-shrink-0 overflow-hidden">
+                    <span class="relative z-10 flex items-center">
+                        Estou pronto, Iniciar Chat! <i class="fa-solid fa-rocket ml-3 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"></i>
+                    </span>
+                    <div class="absolute inset-0 h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
+                </button>
             </div>
-            <button onclick="startChatFromInstructions()" class="w-full bg-primary-600 hover:bg-primary-500 text-white font-medium py-4 rounded-xl shadow-lg shadow-primary-600/20 transition-all flex justify-center items-center flex-shrink-0">
-                Iniciar Chat <i class="fa-solid fa-play ml-2"></i>
-            </button>
         </div>
     </div>
 
