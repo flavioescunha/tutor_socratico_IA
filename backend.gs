@@ -17,7 +17,7 @@ function setupSheets() {
       } else if (name === "Students") {
         s.appendRow(["rm", "name"]);
       } else if (name === "Sessions") {
-        s.appendRow(["id", "student_rm", "script_id", "current_item_order", "chat_history", "status", "final_grade"]);
+        s.appendRow(["id", "student_rm", "script_id", "current_item_order", "chat_history", "status", "final_grade", "Nota Etapa 1", "Just. Etapa 1", "Nota Etapa 2", "Just. Etapa 2", "Nota Etapa 3", "Just. Etapa 3", "Nota Etapa 4", "Just. Etapa 4", "Nota Etapa 5", "Just. Etapa 5", "Nota Etapa 6", "Just. Etapa 6", "Nota Etapa 7", "Just. Etapa 7", "Nota Etapa 8", "Just. Etapa 8", "Nota Etapa 9", "Just. Etapa 9", "Nota Etapa 10", "Just. Etapa 10"]);
       } else if (name === "Logs") {
         s.appendRow(["session_id", "timestamp", "step", "status", "nota", "justificativa", "analise"]);
       }
@@ -567,27 +567,37 @@ function doPost(e) {
       chatHistory.push({role: "assistant", content: llmResp.resposta_chat});
       
       // Update session
+      // Update session
       if (llmResp.status_item === 'aprovado' || llmResp.status_item === 'falha_definitiva') {
-        currentOrder++;
-        if (!nextItemDesc) {
-           // Calculate final grade
-           var allGrades = [];
-           var finalLogs = logSheet.getDataRange().getValues();
-           for(var n=1; n<finalLogs.length; n++) {
-              if(finalLogs[n][0].toString() === payload.session_id.toString()) {
-                  var nota = parseFloat(finalLogs[n][4].toString().replace(",", "."));
-                  if(!isNaN(nota)) allGrades.push(nota);
-              }
-           }
-           var finalGrade = 0;
-           if(allGrades.length > 0) {
-               var sum = allGrades.reduce(function(a, b) { return a + b; }, 0);
-               finalGrade = (sum / allGrades.length).toFixed(1);
-           }
-           
-           sessionSheet.getRange(rowIndex, 6).setValue("completed"); // Status completed
-           sessionSheet.getRange(rowIndex, 7).setValue(finalGrade); // Final grade
-        }
+         // Salva a nota e justificativa (máx 240 char) desta etapa nas colunas da direita
+         var colNota = 8 + (currentOrder - 1) * 2;
+         var colJust = 9 + (currentOrder - 1) * 2;
+         var justTxt = (llmResp.justificativa_nota || "").substring(0, 240);
+         sessionSheet.getRange(rowIndex, colNota).setValue(llmResp.nota_etapa || "");
+         sessionSheet.getRange(rowIndex, colJust).setValue(justTxt);
+
+         // Calcula a média de todas as tentativas até agora
+         var allGrades = [];
+         var finalLogs = logSheet.getDataRange().getValues();
+         for(var n=1; n<finalLogs.length; n++) {
+            if(finalLogs[n][0].toString() === payload.session_id.toString()) {
+                var nota = parseFloat(finalLogs[n][4].toString().replace(",", "."));
+                if(!isNaN(nota)) allGrades.push(nota);
+            }
+         }
+         var finalGrade = 0;
+         if(allGrades.length > 0) {
+             var sum = allGrades.reduce(function(a, b) { return a + b; }, 0);
+             finalGrade = (sum / allGrades.length).toFixed(1);
+         }
+         
+         // Atualiza a Nota Total na coluna 7 continuamente
+         sessionSheet.getRange(rowIndex, 7).setValue(finalGrade);
+
+         currentOrder++;
+         if (!nextItemDesc) {
+            sessionSheet.getRange(rowIndex, 6).setValue("completed"); // Status completed
+         }
       }
       
       sessionSheet.getRange(rowIndex, 4).setValue(currentOrder);
