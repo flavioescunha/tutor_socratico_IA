@@ -56,10 +56,8 @@ function setConfig(key, value) {
   sheet.appendRow([key, value]);
 }
 
-function callGeminiAPI(systemPrompt, chatHistory, model, apiKey) {
-  var cleanModel = (model || "").trim();
+function callGeminiAPI(systemPrompt, chatHistory, primaryModel, apiKey) {
   var cleanKey = (apiKey || "").trim();
-  var url = "https://generativelanguage.googleapis.com/v1beta/models/" + cleanModel + ":generateContent?key=" + cleanKey;
   
   var geminiContents = [];
   chatHistory.forEach(function(msg) {
@@ -88,14 +86,47 @@ function callGeminiAPI(systemPrompt, chatHistory, model, apiKey) {
     "muteHttpExceptions": true
   };
   
-  var response = UrlFetchApp.fetch(url, options);
-  var json = JSON.parse(response.getContentText());
+  // Lista de modelos para fallback. O primeiro tentado será o configurado.
+  var fallbackModels = [
+    (primaryModel || "").trim(),
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-1.5-flash-latest",
+    "gemini-1.5-pro-latest"
+  ];
   
-  if (response.getResponseCode() !== 200) {
-    throw new Error("Erro da API Gemini: " + (json.error ? json.error.message : response.getContentText()));
+  // Remove duplicados e vazios
+  var modelsToTry = fallbackModels.filter(function(item, pos) {
+      return item && fallbackModels.indexOf(item) === pos;
+  });
+  
+  var lastError = "";
+  
+  for (var i = 0; i < modelsToTry.length; i++) {
+    var currentModel = modelsToTry[i];
+    var url = "https://generativelanguage.googleapis.com/v1beta/models/" + currentModel + ":generateContent?key=" + cleanKey;
+    
+    var response = UrlFetchApp.fetch(url, options);
+    var responseCode = response.getResponseCode();
+    var responseText = response.getContentText();
+    var json;
+    
+    try {
+      json = JSON.parse(responseText);
+    } catch(e) {
+      json = {error: {message: responseText}};
+    }
+    
+    if (responseCode === 200) {
+      return JSON.parse(json.candidates[0].content.parts[0].text);
+    } else {
+      lastError = json.error ? json.error.message : responseText;
+      // Continua para o próximo modelo do loop
+    }
   }
   
-  return JSON.parse(json.candidates[0].content.parts[0].text);
+  throw new Error("Erro da API Gemini após tentar múltiplos modelos. Último erro: " + lastError);
 }
 
 function doPost(e) {
