@@ -21,7 +21,7 @@ class Admin(Base):
     
     # Configurações de IA individualizadas
     llm_provider = Column(String, nullable=True) # Ex: "gemini", "xai", "openai"
-    llm_model = Column(String, nullable=True)    # Ex: "gemini-2.0-flash"
+    llm_model = Column(String, nullable=True)    # Ex: "gemini-1.5-flash"
     llm_api_key = Column(String, nullable=True)  # Chave privada do professor
 
     scripts = relationship("Script", back_populates="admin")

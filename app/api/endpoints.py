@@ -190,7 +190,7 @@ async def api_admin_onboarding(
     db: Session = Depends(get_db)
 ):
     if not admin:
-        raise HTTPException(status_code=401, detail="Não autorizado")
+        return RedirectResponse(url="/admin/login", status_code=status.HTTP_302_FOUND)
     
     admin.google_sheet_id = google_sheet_id
     admin.sheet_url = sheet_url
@@ -214,7 +214,7 @@ async def api_admin_settings(
     db: Session = Depends(get_db)
 ):
     if not admin:
-        raise HTTPException(status_code=401, detail="Não autorizado")
+        return RedirectResponse(url="/admin/login", status_code=status.HTTP_302_FOUND)
     
     admin.username = username
     if password and password.strip():
@@ -268,7 +268,7 @@ async def api_admin_create_script(
     db: Session = Depends(get_db)
 ):
     if not admin:
-        raise HTTPException(status_code=401, detail="Não autorizado")
+        return RedirectResponse(url="/admin/login", status_code=status.HTTP_302_FOUND)
         
     form_data = await request.form()
     items = form_data.getlist("items")
@@ -565,7 +565,7 @@ async def api_chat_message(
 
     # Preparar variáveis de configuração do LLM
     admin_provider = session.script.admin.llm_provider if session.script.admin.llm_provider else "gemini"
-    admin_model = session.script.admin.llm_model if session.script.admin.llm_model else "gemini-2.0-flash"
+    admin_model = session.script.admin.llm_model if session.script.admin.llm_model else "gemini-1.5-flash"
     admin_key = session.script.admin.llm_api_key if session.script.admin.llm_api_key else settings.LLM_API_KEY
     
     script_context = f"Disciplina: {session.script.subject}\nTópico: {session.script.title}"
