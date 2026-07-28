@@ -212,19 +212,55 @@ function doPost(e) {
       result.script = scriptObj;
     }
     else if (action === "admin_get_students") {
+      var studentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Students");
+      var stData = studentSheet ? studentSheet.getDataRange().getValues() : [];
+      var allStudents = {};
+      for (var k = 1; k < stData.length; k++) {
+        allStudents[stData[k][0].toString()] = {
+          rm: stData[k][0],
+          name: stData[k][1],
+          session_id: null,
+          current_item_order: 0,
+          status: 'not_started',
+          attempts: 0,
+          final_grade: ''
+        };
+      }
+
       var sessionSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sessions");
       var data = sessionSheet.getDataRange().getValues();
-      var students = [];
       for (var i = 1; i < data.length; i++) {
         if (data[i][2].toString() === payload.script_id.toString()) {
-          students.push({
-            session_id: data[i][0],
-            rm: data[i][1],
-            current_item_order: data[i][3],
-            status: data[i][5],
-            final_grade: data[i][6]
+          var rm = data[i][1].toString();
+          var chatHistory = JSON.parse(data[i][4] || "[]");
+          var attempts = 0;
+          chatHistory.forEach(function(msg) {
+             if (msg.role === 'user') attempts++;
           });
+
+          if (allStudents[rm]) {
+            allStudents[rm].session_id = data[i][0];
+            allStudents[rm].current_item_order = data[i][3];
+            allStudents[rm].status = data[i][5];
+            allStudents[rm].attempts = attempts;
+            allStudents[rm].final_grade = data[i][6];
+          } else {
+             allStudents[rm] = {
+                rm: rm,
+                name: "Desconhecido",
+                session_id: data[i][0],
+                current_item_order: data[i][3],
+                status: data[i][5],
+                attempts: attempts,
+                final_grade: data[i][6]
+             };
+          }
         }
+      }
+      
+      var students = [];
+      for (var key in allStudents) {
+         students.push(allStudents[key]);
       }
       result.students = students;
     }
