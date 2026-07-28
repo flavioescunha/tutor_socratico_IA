@@ -386,6 +386,17 @@ function doPost(e) {
           result.chat_history = JSON.parse(sData[j][4] || "[]");
           result.status = sData[j][5];
           result.final_grade = sData[j][6];
+          
+          var scriptId = sData[j][2];
+          result.current_step = parseInt(sData[j][3]);
+          
+          var itemSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("ScriptItems");
+          var itData = itemSheet.getDataRange().getValues();
+          var totalSteps = 0;
+          for (var l = 1; l < itData.length; l++) {
+            if (itData[l][1].toString() === scriptId.toString()) totalSteps++;
+          }
+          result.total_steps = totalSteps;
           break;
         }
       }
@@ -464,6 +475,13 @@ function doPost(e) {
       sessionSheet.getRange(rowIndex, 5).setValue(JSON.stringify(chatHistory));
       
       result.reply = llmResp;
+      
+      var totalSteps = 0;
+      for (var l = 1; l < itData.length; l++) {
+        if (itData[l][1].toString() === scriptId.toString()) totalSteps++;
+      }
+      result.current_step = currentOrder;
+      result.total_steps = totalSteps;
     }
     else {
       throw new Error("Ação desconhecida");
