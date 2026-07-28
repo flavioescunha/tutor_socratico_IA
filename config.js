@@ -5,6 +5,11 @@ async function fetchGAS(payload) {
     if (GAS_URL === "SUA_URL_DO_GOOGLE_APPS_SCRIPT_AQUI") {
         throw new Error("⚠️ O sistema ainda não foi configurado. Insira a URL do Google Apps Script em config.js");
     }
+    
+    // Auto-append admin token if available
+    if (payload.action && payload.action.startsWith("admin_")) {
+        payload.token = localStorage.getItem("admin_token");
+    }
 
     // Google Apps Script exige fetch com Content-Type text/plain para evitar erro de CORS (Preflight OPTIONS)
     const response = await fetch(GAS_URL, {
