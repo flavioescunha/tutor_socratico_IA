@@ -140,6 +140,27 @@ function doPost(e) {
       if (payload.admin_pass) setConfig("admin_pass", payload.admin_pass);
       result.message = "Configurações salvas";
     }
+    else if (action === "admin_list_models") {
+      var config = getConfig();
+      if (!config.llm_api_key) throw new Error("Chave de API não configurada.");
+      var url = "https://generativelanguage.googleapis.com/v1beta/models?key=" + config.llm_api_key.trim();
+      var options = { "method": "get", "muteHttpExceptions": true };
+      var response = UrlFetchApp.fetch(url, options);
+      var json = JSON.parse(response.getContentText());
+      if (response.getResponseCode() !== 200) {
+        throw new Error("Erro ao listar modelos: " + (json.error ? json.error.message : response.getContentText()));
+      }
+      var models = [];
+      if (json.models) {
+        json.models.forEach(function(m) {
+          // Filter out models that don't support generateContent
+          if (m.supportedGenerationMethods && m.supportedGenerationMethods.indexOf("generateContent") !== -1) {
+            models.push(m.name.replace("models/", ""));
+          }
+        });
+      }
+      result.models = models;
+    }
     else if (action === "admin_save_script") {
       var scriptSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Scripts");
       var itemSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("ScriptItems");

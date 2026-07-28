@@ -137,8 +137,17 @@
                 <div id="settings-msg" class="hidden mb-4 p-3 bg-green-500/20 text-green-400 rounded text-sm">Salvo com sucesso!</div>
                 <form id="form-settings" class="space-y-5">
                     <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-2">Modelo Exato (ex: gemini-1.5-flash)</label>
-                        <input type="text" id="set-model" required class="block w-full px-4 py-3 bg-dark-800 border border-slate-700 rounded-xl text-white font-mono text-sm">
+                        <label class="block text-sm font-medium text-slate-300 mb-2 flex justify-between items-center">
+                            <span>Modelo Exato (ex: gemini-2.5-flash)</span>
+                            <button type="button" id="btn-list-models" class="text-primary-400 hover:text-primary-300 text-xs font-semibold py-1 px-2 bg-dark-700 rounded">
+                                <i id="icon-list-models" class="fa-solid fa-cloud-arrow-down mr-1"></i> Buscar na API
+                            </button>
+                        </label>
+                        <input type="text" id="set-model" list="models-list" required class="block w-full px-4 py-3 bg-dark-800 border border-slate-700 rounded-xl text-white font-mono text-sm">
+                        <datalist id="models-list">
+                            <option value="gemini-1.5-flash-latest">
+                            <option value="gemini-2.5-flash">
+                        </datalist>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-300 mb-2">Sua Chave de API (Secret Key)</label>
@@ -479,7 +488,30 @@
         async function loadSettings() {
             try {
                 const data = await fetchGAS({ action: 'admin_get_settings' });
-                document.getElementById('set-model').value = data.llm_model || 'gemini-1.5-flash';
+                
+                document.getElementById('set-model').value = data.llm_model || 'gemini-1.5-flash-latest';
+                
+                // Fetch models button listener
+                document.getElementById('btn-list-models').onclick = async () => {
+                    const btnIcon = document.getElementById('icon-list-models');
+                    btnIcon.className = "fa-solid fa-spinner fa-spin mr-1";
+                    try {
+                        const mData = await fetchGAS({action: 'admin_list_models'});
+                        const dataList = document.getElementById('models-list');
+                        dataList.innerHTML = '';
+                        mData.models.forEach(model => {
+                            let opt = document.createElement('option');
+                            opt.value = model;
+                            dataList.appendChild(opt);
+                        });
+                        alert('Modelos carregados! Clique na caixa de texto para ver as opções.');
+                        document.getElementById('set-model').focus();
+                    } catch (e) {
+                        alert('Erro ao buscar modelos. Certifique-se que sua Chave de API está configurada e salva.');
+                    } finally {
+                        btnIcon.className = "fa-solid fa-cloud-arrow-down mr-1";
+                    }
+                };
             } catch (e) {}
         }
         
