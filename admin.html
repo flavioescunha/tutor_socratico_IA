@@ -133,9 +133,15 @@
 
         <!-- REPORTS SECTION -->
         <div id="sec-reports" class="max-w-6xl mx-auto hidden-section">
-            <div class="flex justify-between items-center mb-6">
+            <div class="flex flex-col sm:flex-row justify-between items-center mb-6 space-y-4 sm:space-y-0">
                 <h2 class="text-2xl font-bold text-white">Desempenho dos Alunos</h2>
-                <button onclick="loadReports()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm"><i class="fa-solid fa-rotate-right mr-2"></i>Atualizar</button>
+                <div class="flex items-center space-x-2">
+                    <select id="report-filter-script" onchange="renderReports()" class="bg-dark-800 border border-slate-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none">
+                        <option value="">Todas as Atividades</option>
+                    </select>
+                    <button onclick="downloadCSV()" class="bg-green-600 hover:bg-green-500 text-white px-3 py-2 rounded-lg text-sm transition-colors" title="Baixar CSV"><i class="fa-solid fa-download"></i></button>
+                    <button onclick="loadReports()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg text-sm transition-colors" title="Atualizar"><i class="fa-solid fa-rotate-right"></i></button>
+                </div>
             </div>
             <div class="glass-panel rounded-3xl overflow-hidden border border-slate-700/50">
                 <div class="overflow-x-auto">
@@ -310,18 +316,21 @@
             }
         });
 
+        let globalScripts = [];
+
         // Dashboard
         async function loadDashboard() {
             const container = document.getElementById('scripts-list');
             container.innerHTML = '<p class="text-slate-400">Carregando roteiros...</p>';
             try {
                 const data = await fetchGAS({ action: 'admin_list_scripts' });
+                globalScripts = data.scripts || [];
                 container.innerHTML = '';
-                if (data.scripts.length === 0) {
+                if (globalScripts.length === 0) {
                     container.innerHTML = '<p class="text-slate-400">Nenhum roteiro criado.</p>';
                     return;
                 }
-                data.scripts.forEach(s => {
+                globalScripts.forEach(s => {
                     container.innerHTML += `
                         <div class="glass-panel p-6 rounded-2xl relative overflow-hidden group hover:border-indigo-500/50 transition-all flex flex-col">
                             <div>
@@ -576,36 +585,131 @@
             const container = document.getElementById('reports-list');
             container.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">Carregando relatórios...</td></tr>';
             try {
+                // Ensure scripts are loaded for title mapping
+                if (globalScripts.length === 0) {
+                    const sData = await fetchGAS({ action: 'admin_list_scripts' });
+                    globalScripts = sData.scripts || [];
+                }
+                
                 const data = await fetchGAS({ action: 'admin_get_reports' });
                 globalReports = data.reports || [];
                 
-                if (globalReports.length === 0) {
-                    container.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">Nenhuma sessão encontrada.</td></tr>';
-                    return;
-                }
-                
-                container.innerHTML = '';
-                globalReports.forEach((r, idx) => {
-                    const statusClass = r.status === 'completed' ? 'text-green-400 bg-green-400/10' : 'text-blue-400 bg-blue-400/10';
-                    const statusText = r.status === 'completed' ? 'Concluído' : 'Em andamento';
-                    const finalGrade = r.final_grade ? parseFloat(r.final_grade).toFixed(1) : '-';
-                    
-                    container.innerHTML += `
-                        <tr class="hover:bg-dark-800/30 transition-colors">
-                            <td class="p-4 text-white font-medium">${r.student_name}</td>
-                            <td class="p-4 text-slate-400 font-mono text-sm">${r.student_rm}</td>
-                            <td class="p-4 text-slate-400 text-sm">${r.script_id}</td>
-                            <td class="p-4"><span class="px-2 py-1 rounded text-xs font-medium ${statusClass}">${statusText} (Etapa ${r.current_step})</span></td>
-                            <td class="p-4 text-white font-bold">${finalGrade}</td>
-                            <td class="p-4 text-right">
-                                <button onclick="showReportDetails(${idx})" class="text-indigo-400 hover:text-indigo-300 text-sm"><i class="fa-solid fa-eye mr-1"></i>Ver Detalhes</button>
-                            </td>
-                        </tr>
-                    `;
+                // Update dropdown
+                const sel = document.getElementById('report-filter-script');
+                const prevVal = sel.value;
+                sel.innerHTML = '<option value="">Todas as Atividades</option>';
+                const uniqueScriptIds = [...new Set(globalReports.map(r => r.script_id))];
+                uniqueScriptIds.forEach(id => {
+                    const sObj = globalScripts.find(s => s.id.toString() === id.toString());
+                    const label = sObj ? `${sObj.subject} - ${sObj.title}` : `Script ${id}`;
+                    sel.innerHTML += `<option value="${id}">${label}</option>`;
                 });
+                if (uniqueScriptIds.includes(prevVal)) sel.value = prevVal;
+                
+                renderReports();
             } catch (err) {
                 container.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-red-400">Erro: ${err.message}</td></tr>`;
             }
+        }
+        
+        function renderReports() {
+            const container = document.getElementById('reports-list');
+            const filterId = document.getElementById('report-filter-script').value;
+            
+            let filtered = globalReports;
+            if (filterId) {
+                filtered = globalReports.filter(r => r.script_id.toString() === filterId);
+            }
+            
+            if (filtered.length === 0) {
+                container.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">Nenhuma sessão encontrada.</td></tr>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            filtered.forEach((r, idx) => {
+                const sObj = globalScripts.find(s => s.id.toString() === r.script_id.toString());
+                const scriptName = sObj ? `<span class="text-xs block text-slate-400">${sObj.subject}</span>${sObj.title}` : r.script_id;
+                
+                const statusClass = r.status === 'completed' ? 'text-green-400 bg-green-400/10' : 'text-blue-400 bg-blue-400/10';
+                const statusText = r.status === 'completed' ? 'Concluído' : 'Em andamento';
+                const finalGrade = r.final_grade ? parseFloat(r.final_grade).toFixed(1) : '-';
+                
+                container.innerHTML += `
+                    <tr class="hover:bg-dark-800/30 transition-colors">
+                        <td class="p-4 text-white font-medium">${r.student_name}</td>
+                        <td class="p-4 text-slate-400 font-mono text-sm">${r.student_rm}</td>
+                        <td class="p-4 text-slate-300 text-sm">${scriptName}</td>
+                        <td class="p-4"><span class="px-2 py-1 rounded text-xs font-medium ${statusClass}">${statusText} (Etapa ${r.current_step})</span></td>
+                        <td class="p-4 text-white font-bold">${finalGrade}</td>
+                        <td class="p-4 text-right">
+                            <button onclick="viewReport('${r.session_id}')" class="text-indigo-400 hover:text-indigo-300 text-sm font-medium">Ver Detalhes</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function downloadCSV() {
+            const filterId = document.getElementById('report-filter-script').value;
+            let filtered = globalReports;
+            let fileName = 'relatorio_alunos_todas_disciplinas.csv';
+            
+            if (filterId) {
+                filtered = globalReports.filter(r => r.script_id.toString() === filterId);
+                const sObj = globalScripts.find(s => s.id.toString() === filterId);
+                if (sObj) {
+                    fileName = `relatorio_${sObj.subject}_${sObj.title}.csv`.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.csv';
+                }
+            }
+            
+            if (filtered.length === 0) {
+                alert('Nenhum dado para exportar.');
+                return;
+            }
+            
+            const rows = [];
+            rows.push(['RM', 'Aluno', 'Disciplina', 'Atividade', 'Status', 'Etapa Atual', 'Nota Final', 'Etapas Detalhadas...']);
+            
+            filtered.forEach(r => {
+                const sObj = globalScripts.find(s => s.id.toString() === r.script_id.toString());
+                const subj = sObj ? sObj.subject : '';
+                const titl = sObj ? sObj.title : r.script_id;
+                const baseRow = [r.student_rm, r.student_name, subj, titl, r.status, r.current_step, r.final_grade || ''];
+                const stepGrades = {};
+                if (r.logs && r.logs.length > 0) {
+                    r.logs.forEach(log => {
+                        stepGrades[log.step] = { nota: log.nota, justificativa: log.justificativa };
+                    });
+                }
+                Object.keys(stepGrades).sort().forEach(step => {
+                    baseRow.push(`Etapa ${step} - Nota: ${stepGrades[step].nota}`);
+                    baseRow.push(`Etapa ${step} - Justif: ${stepGrades[step].justificativa}`);
+                });
+                rows.push(baseRow);
+            });
+            
+            const csvContent = rows.map(e => e.map(cell => {
+                let str = (cell === null || cell === undefined) ? '' : cell.toString();
+                if (str.includes(',') || str.includes('"') || str.includes('\\n')) {
+                    str = '"' + str.replace(/"/g, '""') + '"';
+                }
+                return String(str);
+            }).join(',')).join('\\n');
+            
+            const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", fileName);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        function viewReport(sessionId) {
+            const idx = globalReports.findIndex(r => r.session_id === sessionId);
+            if (idx !== -1) showReportDetails(idx);
         }
         
         function showReportDetails(idx) {
