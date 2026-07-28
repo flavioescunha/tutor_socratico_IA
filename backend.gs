@@ -499,6 +499,7 @@ function doPost(e) {
       var systemPrompt = "Você é um Tutor Socrático especializado em IA. Seu objetivo é ajudar o aluno a aprender guiando-o APENAS pelo tópico atual.\n";
       systemPrompt += "REGRAS CRÍTICAS:\n";
       systemPrompt += "- VOCÊ É ESTRITAMENTE PROIBIDO DE DAR A RESPOSTA PRONTA. Faça perguntas instigantes.\n";
+      systemPrompt += "- Faça perguntas abertas e reflexivas. Jamais faça perguntas de 'sim/não' ou que permitam respostas secas. Exija (e induza) o aluno a elaborar a resposta na forma de um texto/parágrafo coeso, com começo, meio e fim.\n";
       systemPrompt += "- Avalie se o aluno demonstrou compreensão do [OBJETIVO DO ITEM ATUAL].\n";
       
       if (nextItemDesc) {
