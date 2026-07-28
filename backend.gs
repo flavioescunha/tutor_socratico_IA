@@ -584,14 +584,21 @@ function doPost(e) {
          sessionSheet.getRange(rowIndex, colNota).setValue(llmResp.nota_etapa || "");
          sessionSheet.getRange(rowIndex, colJust).setValue(justTxt);
 
-         // Calcula a média de todas as tentativas até agora
-         var allGrades = [];
+         // Calcula a média das notas (pegando apenas a última tentativa de cada etapa)
+         var gradesByStep = {};
          var finalLogs = logSheet.getDataRange().getValues();
          for(var n=1; n<finalLogs.length; n++) {
             if(finalLogs[n][0].toString() === payload.session_id.toString()) {
                 var nota = parseFloat(finalLogs[n][4].toString().replace(",", "."));
-                if(!isNaN(nota)) allGrades.push(nota);
+                var stepId = finalLogs[n][2].toString();
+                if(!isNaN(nota)) {
+                   gradesByStep[stepId] = nota;
+                }
             }
+         }
+         var allGrades = [];
+         for(var key in gradesByStep) {
+             allGrades.push(gradesByStep[key]);
          }
          var finalGrade = 0;
          if(allGrades.length > 0) {
