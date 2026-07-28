@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutor Socrático IA - Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'], display: ['Outfit', 'sans-serif'] },
+                    colors: { primary: {50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 900: '#0c4a6e'}, dark: {900: '#0f172a', 800: '#1e293b', 700: '#334155'} }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .hidden-section { display: none !important; }
+    </style>
+</head>
+<body class="bg-dark-900 text-slate-200 min-h-screen font-sans">
+    
+    <!-- Topbar (hidden on login/setup) -->
+    <header id="topbar" class="glass-panel border-b border-slate-700/50 sticky top-0 z-40 hidden-section">
+        <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-white cursor-pointer" onclick="showSection('dashboard')"><i class="fa-solid fa-chalkboard-user mr-2 text-indigo-400"></i>Painel do Professor</h2>
+            <div class="flex items-center space-x-4">
+                <button onclick="showSection('settings')" class="text-sm text-slate-400 hover:text-white transition-colors"><i class="fa-solid fa-gear"></i> Configurações</button>
+                <button onclick="logout()" class="text-sm text-red-400 hover:text-red-300 transition-colors"><i class="fa-solid fa-right-from-bracket"></i> Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="w-full max-w-6xl mx-auto p-4 sm:p-6 mt-4">
+        
+        <!-- LOGIN SECTION -->
+        <div id="sec-login" class="max-w-md mx-auto hidden-section">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-indigo-600 rounded-2xl mx-auto flex items-center justify-center mb-4"><i class="fa-solid fa-lock text-3xl text-white"></i></div>
+                <h1 class="text-3xl font-display font-bold text-white mb-2">Acesso Admin</h1>
+            </div>
+            <div class="glass-panel rounded-3xl p-8">
+                <div id="login-error" class="hidden mb-4 text-red-400 text-sm"></div>
+                <form id="form-login" class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Usuário</label>
+                        <input type="text" id="login-user" required class="block w-full px-4 py-3 bg-dark-800/50 border border-slate-700 rounded-xl text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Senha</label>
+                        <input type="password" id="login-pass" required class="block w-full px-4 py-3 bg-dark-800/50 border border-slate-700 rounded-xl text-white">
+                    </div>
+                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-xl mt-4">Entrar</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- SETUP SECTION -->
+        <div id="sec-setup" class="max-w-md mx-auto hidden-section">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-display font-bold text-white mb-2">Primeiro Acesso</h1>
+                <p class="text-slate-400 text-sm">Crie seu usuário de acesso.</p>
+            </div>
+            <div class="glass-panel rounded-3xl p-8">
+                <form id="form-setup" class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Novo Usuário</label>
+                        <input type="text" id="setup-user" required class="block w-full px-4 py-3 bg-dark-800/50 border border-slate-700 rounded-xl text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Nova Senha</label>
+                        <input type="password" id="setup-pass" required class="block w-full px-4 py-3 bg-dark-800/50 border border-slate-700 rounded-xl text-white">
+                    </div>
+                    <button type="submit" class="w-full bg-indigo-600 text-white font-medium py-3 rounded-xl">Criar Conta</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- DASHBOARD SECTION -->
+        <div id="sec-dashboard" class="hidden-section">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-white">Meus Roteiros</h2>
+                <button onclick="editScript(null)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium"><i class="fa-solid fa-plus mr-2"></i>Novo Roteiro</button>
+            </div>
+            <div id="scripts-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+
+        <!-- SCRIPT EDIT SECTION -->
+        <div id="sec-script-edit" class="max-w-3xl mx-auto hidden-section">
+            <h2 class="text-2xl font-bold text-white mb-6" id="script-form-title">Criar Roteiro</h2>
+            <div class="glass-panel rounded-3xl p-6 sm:p-8">
+                <form id="form-script" class="space-y-6">
+                    <input type="hidden" id="script-id">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Título do Roteiro</label>
+                            <input type="text" id="script-title" required class="block w-full px-4 py-3 bg-dark-800 border border-slate-700 rounded-xl text-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Disciplina</label>
+                            <input type="text" id="script-subject" required class="block w-full px-4 py-3 bg-dark-800 border border-slate-700 rounded-xl text-white">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Tentativas permitidas</label>
+                        <input type="number" id="script-attempts" value="3" required class="block w-full px-4 py-3 bg-dark-800 border border-slate-700 rounded-xl text-white">
+                    </div>
+                    
+                    <div>
+                        <div class="flex justify-between items-end mb-2">
+                            <label class="block text-sm font-medium text-slate-300">Itens / Objetivos Passo-a-Passo</label>
+                            <button type="button" onclick="addScriptItem()" class="text-xs text-indigo-400 hover:text-indigo-300"><i class="fa-solid fa-plus mr-1"></i>Adicionar Item</button>
+                        </div>
+                        <div id="script-items-container" class="space-y-3">
+                            <!-- Items -->
+                        </div>
+                    </div>
+
+                    <div class="flex space-x-4 pt-4 border-t border-slate-700">
+                        <button type="button" onclick="showSection('dashboard')" class="flex-1 bg-dark-800 text-white font-medium py-3 rounded-xl">Cancelar</button>
+                        <button type="submit" class="flex-1 bg-indigo-600 text-white font-medium py-3 rounded-xl">Salvar Roteiro</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- SETTINGS SECTION -->
+        <div id="sec-settings" class="max-w-2xl mx-auto hidden-section">
+            <h2 class="text-2xl font-bold text-white mb-6">Configurações de IA</h2>
+            <div class="glass-panel rounded-3xl p-6 sm:p-8">
+                <div id="settings-msg" class="hidden mb-4 p-3 bg-green-500/20 text-green-400 rounded text-sm">Salvo com sucesso!</div>
+                <form id="form-settings" class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Modelo Exato (ex: gemini-1.5-flash)</label>
+                        <input type="text" id="set-model" required class="block w-full px-4 py-3 bg-dark-800 border border-slate-700 rounded-xl text-white font-mono text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Sua Chave de API (Secret Key)</label>
+                        <input type="password" id="set-key" class="block w-full px-4 py-3 bg-dark-800 border border-slate-700 rounded-xl text-white font-mono text-sm" placeholder="Deixe em branco para não alterar">
+                    </div>
+                    <div class="pt-4 border-t border-slate-700">
+                        <button type="submit" class="w-full bg-indigo-600 text-white font-medium py-3 rounded-xl">Salvar Configurações</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="config.js"></script>
+    <script>
+        // Router / Section Manager
+        function showSection(id) {
+            document.querySelectorAll('main > div').forEach(el => el.classList.add('hidden-section'));
+            document.getElementById('sec-' + id).classList.remove('hidden-section');
+            
+            if (id === 'login' || id === 'setup') {
+                document.getElementById('topbar').classList.add('hidden-section');
+            } else {
+                document.getElementById('topbar').classList.remove('hidden-section');
+            }
+
+            if (id === 'dashboard') loadDashboard();
+            if (id === 'settings') loadSettings();
+        }
+
+        function logout() {
+            localStorage.removeItem('admin_token');
+            showSection('login');
+        }
+
+        // Init
+        window.onload = async () => {
+            if (localStorage.getItem('admin_token')) {
+                showSection('dashboard');
+            } else {
+                showSection('login');
+            }
+        };
+
+        // Form: Login
+        document.getElementById('form-login').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.innerText = 'Verificando...';
+            try {
+                const data = await fetchGAS({
+                    action: 'admin_login',
+                    username: document.getElementById('login-user').value,
+                    password: document.getElementById('login-pass').value
+                });
+                
+                if (data.needs_setup) {
+                    showSection('setup');
+                } else if (data.success) {
+                    localStorage.setItem('admin_token', data.token);
+                    showSection('dashboard');
+                }
+            } catch (err) {
+                const el = document.getElementById('login-error');
+                el.innerText = err.message;
+                el.classList.remove('hidden');
+            } finally {
+                btn.innerText = 'Entrar';
+            }
+        });
+
+        // Form: Setup
+        document.getElementById('form-setup').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.innerText = 'Salvando...';
+            try {
+                await fetchGAS({
+                    action: 'admin_setup',
+                    username: document.getElementById('setup-user').value,
+                    password: document.getElementById('setup-pass').value
+                });
+                // After setup, auto login
+                localStorage.setItem('admin_token', 'temp');
+                showSection('settings');
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                btn.innerText = 'Criar Conta';
+            }
+        });
+
+        // Dashboard
+        async function loadDashboard() {
+            const container = document.getElementById('scripts-list');
+            container.innerHTML = '<p class="text-slate-400">Carregando roteiros...</p>';
+            try {
+                const data = await fetchGAS({ action: 'admin_list_scripts' });
+                container.innerHTML = '';
+                if (data.scripts.length === 0) {
+                    container.innerHTML = '<p class="text-slate-400">Nenhum roteiro criado.</p>';
+                    return;
+                }
+                data.scripts.forEach(s => {
+                    container.innerHTML += `
+                        <div class="glass-panel p-6 rounded-2xl relative overflow-hidden group hover:border-indigo-500/50 transition-all">
+                            <span class="inline-block px-3 py-1 bg-dark-800 text-indigo-400 text-xs font-medium rounded-full mb-3 border border-slate-700">${s.subject}</span>
+                            <h3 class="text-lg font-semibold text-white mb-1">${s.title}</h3>
+                            <p class="text-xs text-slate-500 mb-4 font-mono">ID: ${s.id}</p>
+                            <div class="flex space-x-2">
+                                <button onclick="editScript('${s.id}')" class="flex-1 bg-dark-800 hover:bg-indigo-600/20 text-slate-300 hover:text-indigo-400 py-2 rounded-lg text-sm border border-slate-700 hover:border-indigo-500/30 transition-all">Editar</button>
+                                <a href="index.html?script=${s.id}" target="_blank" class="flex-1 bg-dark-800 hover:bg-green-600/20 text-slate-300 hover:text-green-400 py-2 rounded-lg text-sm border border-slate-700 hover:border-green-500/30 transition-all text-center">Testar</a>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                container.innerHTML = `<p class="text-red-400">Erro: ${err.message}</p>`;
+                if (err.message.includes('Credenciais') || err.message.includes('setup')) logout();
+            }
+        }
+
+        // Script Edit
+        function addScriptItem(val = '') {
+            const c = document.getElementById('script-items-container');
+            const div = document.createElement('div');
+            div.className = "flex gap-2";
+            div.innerHTML = `
+                <textarea required class="flex-grow bg-dark-800/50 border border-slate-700 rounded-xl text-white px-4 py-2 text-sm resize-none focus:ring-1 focus:ring-indigo-500" rows="2" placeholder="O aluno deve aprender que...">${val}</textarea>
+                <button type="button" onclick="this.parentElement.remove()" class="w-10 h-10 flex-shrink-0 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-xl flex items-center justify-center"><i class="fa-solid fa-trash"></i></button>
+            `;
+            c.appendChild(div);
+        }
+
+        async function editScript(id) {
+            document.getElementById('form-script').reset();
+            document.getElementById('script-items-container').innerHTML = '';
+            document.getElementById('script-id').value = id || '';
+            document.getElementById('script-form-title').innerText = id ? 'Editar Roteiro' : 'Criar Roteiro';
+            
+            if (id) {
+                // Load existing
+                try {
+                    const data = await fetchGAS({ action: 'admin_get_script', id: id });
+                    document.getElementById('script-title').value = data.script.title;
+                    document.getElementById('script-subject').value = data.script.subject;
+                    document.getElementById('script-attempts').value = data.script.attempts_limit;
+                    data.script.items.forEach(i => addScriptItem(i.description));
+                } catch (e) {
+                    alert('Erro ao carregar roteiro');
+                }
+            } else {
+                addScriptItem();
+            }
+            showSection('script-edit');
+        }
+
+        document.getElementById('form-script').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.innerText = 'Salvando...';
+            
+            const items = [];
+            document.querySelectorAll('#script-items-container textarea').forEach(ta => items.push(ta.value));
+            
+            try {
+                await fetchGAS({
+                    action: 'admin_save_script',
+                    id: document.getElementById('script-id').value,
+                    title: document.getElementById('script-title').value,
+                    subject: document.getElementById('script-subject').value,
+                    attempts_limit: document.getElementById('script-attempts').value,
+                    items: items
+                });
+                showSection('dashboard');
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                btn.innerText = 'Salvar Roteiro';
+            }
+        });
+
+        // Settings
+        async function loadSettings() {
+            try {
+                const data = await fetchGAS({ action: 'admin_get_settings' });
+                document.getElementById('set-model').value = data.llm_model || 'gemini-1.5-flash';
+            } catch (e) {}
+        }
+        
+        document.getElementById('form-settings').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.innerText = 'Salvando...';
+            
+            try {
+                await fetchGAS({
+                    action: 'admin_save_settings',
+                    llm_model: document.getElementById('set-model').value,
+                    llm_api_key: document.getElementById('set-key').value
+                });
+                const msg = document.getElementById('settings-msg');
+                msg.classList.remove('hidden');
+                setTimeout(() => msg.classList.add('hidden'), 3000);
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                btn.innerText = 'Salvar Configurações';
+            }
+        });
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,382 @@
+function setupSheets() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheets = ["Config", "Scripts", "ScriptItems", "Students", "Sessions"];
+  
+  sheets.forEach(function(name) {
+    if (!ss.getSheetByName(name)) {
+      var s = ss.insertSheet(name);
+      if (name === "Config") {
+        s.appendRow(["key", "value"]);
+        s.appendRow(["admin_user", ""]);
+        s.appendRow(["admin_pass", ""]);
+        s.appendRow(["llm_model", "gemini-1.5-flash"]);
+        s.appendRow(["llm_api_key", ""]);
+      } else if (name === "Scripts") {
+        s.appendRow(["id", "title", "subject", "attempts_limit"]);
+      } else if (name === "ScriptItems") {
+        s.appendRow(["id", "script_id", "sequence_order", "description"]);
+      } else if (name === "Students") {
+        s.appendRow(["rm", "name"]);
+      } else if (name === "Sessions") {
+        s.appendRow(["id", "student_rm", "script_id", "current_item_order", "chat_history", "status", "final_grade"]);
+      }
+    }
+  });
+  
+  // Exclui a "Página1" se existir e estiver vazia
+  var sheet1 = ss.getSheetByName("Página1") || ss.getSheetByName("Sheet1");
+  if (sheet1 && ss.getSheets().length > 1) {
+    ss.deleteSheet(sheet1);
+  }
+}
+
+function getConfig() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Config");
+  if (!sheet) {
+    setupSheets();
+    sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Config");
+  }
+  var data = sheet.getDataRange().getValues();
+  var config = {};
+  for (var i = 1; i < data.length; i++) {
+    config[data[i][0]] = data[i][1];
+  }
+  return config;
+}
+
+function setConfig(key, value) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Config");
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] === key) {
+      sheet.getRange(i + 1, 2).setValue(value);
+      return;
+    }
+  }
+  sheet.appendRow([key, value]);
+}
+
+function callGeminiAPI(systemPrompt, chatHistory, model, apiKey) {
+  var url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey;
+  
+  var geminiContents = [];
+  chatHistory.forEach(function(msg) {
+    var role = msg.role === "user" ? "user" : "model";
+    geminiContents.push({
+      "role": role,
+      "parts": [{"text": msg.content}]
+    });
+  });
+  
+  var payload = {
+    "systemInstruction": {
+      "parts": [{"text": systemPrompt}]
+    },
+    "contents": geminiContents,
+    "generationConfig": {
+      "temperature": 0.2,
+      "responseMimeType": "application/json"
+    }
+  };
+  
+  var options = {
+    "method": "post",
+    "contentType": "application/json",
+    "payload": JSON.stringify(payload),
+    "muteHttpExceptions": true
+  };
+  
+  var response = UrlFetchApp.fetch(url, options);
+  var json = JSON.parse(response.getContentText());
+  
+  if (response.getResponseCode() !== 200) {
+    throw new Error("Erro da API Gemini: " + (json.error ? json.error.message : response.getContentText()));
+  }
+  
+  return JSON.parse(json.candidates[0].content.parts[0].text);
+}
+
+function doPost(e) {
+  var output = ContentService.createTextOutput();
+  output.setMimeType(ContentService.MimeType.JSON);
+  
+  try {
+    var payload = JSON.parse(e.postData.contents);
+    var action = payload.action;
+    var result = {};
+    
+    // --- ADMIN ACTIONS ---
+    if (action === "admin_setup") {
+      var config = getConfig();
+      if (config.admin_user && config.admin_user !== "") {
+        throw new Error("Administrador já configurado.");
+      }
+      setConfig("admin_user", payload.username);
+      setConfig("admin_pass", payload.password);
+      result.message = "Setup concluído";
+    } 
+    else if (action === "admin_login") {
+      var config = getConfig();
+      if (!config.admin_user || config.admin_user === "") {
+        result.needs_setup = true;
+      } else if (config.admin_user === payload.username && config.admin_pass === payload.password) {
+        result.success = true;
+        result.token = "admin_auth_token"; // Simple auth token for prototype
+      } else {
+        throw new Error("Credenciais inválidas");
+      }
+    }
+    else if (action === "admin_get_settings") {
+      var config = getConfig();
+      result.llm_model = config.llm_model;
+      result.llm_api_key = config.llm_api_key;
+    }
+    else if (action === "admin_save_settings") {
+      setConfig("llm_model", payload.llm_model);
+      if (payload.llm_api_key) setConfig("llm_api_key", payload.llm_api_key);
+      if (payload.admin_user) setConfig("admin_user", payload.admin_user);
+      if (payload.admin_pass) setConfig("admin_pass", payload.admin_pass);
+      result.message = "Configurações salvas";
+    }
+    else if (action === "admin_save_script") {
+      var scriptSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Scripts");
+      var itemSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("ScriptItems");
+      
+      var scriptId = payload.id || new Date().getTime().toString();
+      
+      if (!payload.id) {
+        scriptSheet.appendRow([scriptId, payload.title, payload.subject, payload.attempts_limit]);
+      } else {
+        // Edit existing...
+        var data = scriptSheet.getDataRange().getValues();
+        for(var i=1; i<data.length; i++) {
+           if(data[i][0].toString() === scriptId.toString()) {
+             scriptSheet.getRange(i+1, 2).setValue(payload.title);
+             scriptSheet.getRange(i+1, 3).setValue(payload.subject);
+             scriptSheet.getRange(i+1, 4).setValue(payload.attempts_limit);
+           }
+        }
+        // Delete old items
+        var iData = itemSheet.getDataRange().getValues();
+        for(var j=iData.length-1; j>=1; j--) {
+           if(iData[j][1].toString() === scriptId.toString()) {
+             itemSheet.deleteRow(j+1);
+           }
+        }
+      }
+      
+      // items
+      payload.items.forEach(function(desc, index) {
+        itemSheet.appendRow([new Date().getTime().toString() + index, scriptId, index + 1, desc]);
+      });
+      result.script_id = scriptId;
+    }
+    else if (action === "admin_list_scripts") {
+      var scriptSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Scripts");
+      if (!scriptSheet) setupSheets();
+      var data = scriptSheet.getDataRange().getValues();
+      var scripts = [];
+      for (var i = 1; i < data.length; i++) {
+        scripts.push({
+          id: data[i][0],
+          title: data[i][1],
+          subject: data[i][2]
+        });
+      }
+      result.scripts = scripts;
+    }
+    else if (action === "admin_get_script") {
+      var scriptSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Scripts");
+      var data = scriptSheet.getDataRange().getValues();
+      var scriptObj = null;
+      for (var i = 1; i < data.length; i++) {
+        if(data[i][0].toString() === payload.id.toString()) {
+           scriptObj = {id: data[i][0], title: data[i][1], subject: data[i][2], attempts_limit: data[i][3], items: []};
+        }
+      }
+      var itemSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("ScriptItems");
+      var iData = itemSheet.getDataRange().getValues();
+      for (var i = 1; i < iData.length; i++) {
+        if(iData[i][1].toString() === payload.id.toString()) {
+           scriptObj.items.push({sequence_order: iData[i][2], description: iData[i][3]});
+        }
+      }
+      if(scriptObj) scriptObj.items.sort((a,b)=>a.sequence_order - b.sequence_order);
+      result.script = scriptObj;
+    }
+    else if (action === "admin_get_students") {
+      var sessionSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sessions");
+      var data = sessionSheet.getDataRange().getValues();
+      var students = [];
+      for (var i = 1; i < data.length; i++) {
+        if (data[i][2].toString() === payload.script_id.toString()) {
+          students.push({
+            session_id: data[i][0],
+            rm: data[i][1],
+            current_item_order: data[i][3],
+            status: data[i][5],
+            final_grade: data[i][6]
+          });
+        }
+      }
+      result.students = students;
+    }
+    
+    // --- STUDENT ACTIONS ---
+    else if (action === "student_login") {
+      var studentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Students");
+      var data = studentSheet.getDataRange().getValues();
+      var found = false;
+      for (var i = 1; i < data.length; i++) {
+        if (data[i][0].toString() === payload.rm.toString()) {
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        studentSheet.appendRow([payload.rm, payload.name]);
+      }
+      
+      // Init or Get session
+      var sessionSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sessions");
+      var sData = sessionSheet.getDataRange().getValues();
+      var sessionId = null;
+      var chatHistory = [];
+      var currentOrder = 1;
+      
+      for (var j = 1; j < sData.length; j++) {
+        if (sData[j][1].toString() === payload.rm.toString() && sData[j][2].toString() === payload.script_id.toString()) {
+          sessionId = sData[j][0];
+          currentOrder = parseInt(sData[j][3]);
+          chatHistory = JSON.parse(sData[j][4] || "[]");
+          break;
+        }
+      }
+      
+      if (!sessionId) {
+        sessionId = new Date().getTime().toString();
+        // Get script title for greeting
+        var scriptSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Scripts");
+        var scriptData = scriptSheet.getDataRange().getValues();
+        var title = "Roteiro";
+        for (var k = 1; k < scriptData.length; k++) {
+          if (scriptData[k][0].toString() === payload.script_id.toString()) {
+            title = scriptData[k][1];
+            break;
+          }
+        }
+        
+        chatHistory = [{
+          role: "assistant", 
+          content: "Olá, " + payload.name + "! Vamos começar o roteiro **" + title + "**. O que você sabe sobre o primeiro assunto?"
+        }];
+        sessionSheet.appendRow([sessionId, payload.rm, payload.script_id, 1, JSON.stringify(chatHistory), "active", ""]);
+      }
+      
+      result.session_id = sessionId;
+      result.name = payload.name;
+    }
+    else if (action === "student_get_chat") {
+      var sessionSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sessions");
+      var sData = sessionSheet.getDataRange().getValues();
+      for (var j = 1; j < sData.length; j++) {
+        if (sData[j][0].toString() === payload.session_id.toString()) {
+          result.chat_history = JSON.parse(sData[j][4] || "[]");
+          result.status = sData[j][5];
+          result.final_grade = sData[j][6];
+          break;
+        }
+      }
+    }
+    else if (action === "student_send_message") {
+      var config = getConfig();
+      var sessionSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sessions");
+      var sData = sessionSheet.getDataRange().getValues();
+      var rowIndex = -1;
+      var sessionRecord = null;
+      
+      for (var j = 1; j < sData.length; j++) {
+        if (sData[j][0].toString() === payload.session_id.toString()) {
+          rowIndex = j + 1;
+          sessionRecord = sData[j];
+          break;
+        }
+      }
+      
+      if (rowIndex === -1) throw new Error("Sessão não encontrada");
+      
+      var scriptId = sessionRecord[2];
+      var currentOrder = parseInt(sessionRecord[3]);
+      var chatHistory = JSON.parse(sessionRecord[4] || "[]");
+      
+      // Append user message
+      chatHistory.push({role: "user", content: payload.message});
+      
+      // Get script details and current item
+      var scriptSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Scripts");
+      var scriptTitle = "", scriptSubject = "";
+      var scData = scriptSheet.getDataRange().getValues();
+      for (var k = 1; k < scData.length; k++) {
+        if (scData[k][0].toString() === scriptId.toString()) {
+          scriptTitle = scData[k][1];
+          scriptSubject = scData[k][2];
+          break;
+        }
+      }
+      
+      var itemSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("ScriptItems");
+      var itData = itemSheet.getDataRange().getValues();
+      var currentItemDesc = "", nextItemDesc = "";
+      for (var l = 1; l < itData.length; l++) {
+        if (itData[l][1].toString() === scriptId.toString()) {
+          var o = parseInt(itData[l][2]);
+          if (o === currentOrder) currentItemDesc = itData[l][3];
+          if (o === currentOrder + 1) nextItemDesc = itData[l][3];
+        }
+      }
+      
+      // Build Prompt
+      var systemPrompt = "Você é um Tutor Socrático especializado em IA. Seu objetivo é ajudar o aluno a aprender guiando-o.\n";
+      systemPrompt += "VOCÊ É ESTRITAMENTE PROIBIDO DE DAR A RESPOSTA PRONTA. Faça perguntas.\n";
+      systemPrompt += "Sua resposta deve ser estritamente um JSON: {\"analise_raciocinio_aluno\": \"...\", \"status_item\": \"aprovado|refazer|falha_definitiva\", \"nota_etapa\": \"0 a 10\", \"justificativa_nota\": \"...\", \"resposta_chat\": \"...\"}\n\n";
+      systemPrompt += "[CONTEXTO DO ROTEIRO]\nDisciplina: " + scriptSubject + "\nTópico: " + scriptTitle + "\n\n";
+      systemPrompt += "[OBJETIVO DO ITEM ATUAL]\n" + currentItemDesc + "\n\n";
+      if (nextItemDesc) systemPrompt += "[PRÓXIMO OBJETIVO DO ROTEIRO]\n" + nextItemDesc + "\n\n";
+      systemPrompt += "[INSTRUÇÕES]\n1. Se o aluno compreendeu, status = 'aprovado'.\n2. Se não, status = 'refazer'.\n";
+      
+      // Call LLM
+      var llmResp = callGeminiAPI(systemPrompt, chatHistory, config.llm_model, config.llm_api_key);
+      
+      // Append assistant message
+      chatHistory.push({role: "assistant", content: llmResp.resposta_chat});
+      
+      // Update session
+      if (llmResp.status_item === 'aprovado' || llmResp.status_item === 'falha_definitiva') {
+        currentOrder++;
+        if (!nextItemDesc) {
+           sessionSheet.getRange(rowIndex, 6).setValue("completed"); // Status completed
+        }
+      }
+      
+      sessionSheet.getRange(rowIndex, 4).setValue(currentOrder);
+      sessionSheet.getRange(rowIndex, 5).setValue(JSON.stringify(chatHistory));
+      
+      result.reply = llmResp;
+    }
+    else {
+      throw new Error("Ação desconhecida");
+    }
+    
+    return output.setContent(JSON.stringify({status: "success", data: result}));
+    
+  } catch (error) {
+    return output.setContent(JSON.stringify({status: "error", message: error.toString()}));
+  }
+}
+
+// Para evitar problemas de preflight no navegador, as chamadas Fetch POST
+// deverão usar content-type text/plain
+function doOptions(e) {
+  var output = ContentService.createTextOutput();
+  return output;
+}

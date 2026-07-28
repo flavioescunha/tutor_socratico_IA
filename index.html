@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutor Socrático IA - Aluno</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'], display: ['Outfit', 'sans-serif'] },
+                    colors: { primary: {50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 900: '#0c4a6e'}, dark: {900: '#0f172a', 800: '#1e293b', 700: '#334155'} }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .fade-in-up { animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(20px); }
+        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-dark-900 text-slate-200 min-h-screen font-sans flex flex-col relative overflow-x-hidden">
+    <div class="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary-600/20 blur-[120px] pointer-events-none"></div>
+    <div class="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-600/20 blur-[120px] pointer-events-none"></div>
+    
+    <div class="min-h-screen flex items-center justify-center p-4 z-10">
+        <div class="w-full max-w-md">
+            <div class="text-center mb-8 fade-in-up">
+                <div class="w-20 h-20 bg-primary-600 rounded-3xl mx-auto flex items-center justify-center mb-6 shadow-xl shadow-primary-500/30">
+                    <i class="fa-solid fa-graduation-cap text-4xl text-white"></i>
+                </div>
+                <h1 class="text-4xl font-display font-bold text-white mb-3">Tutor Socrático IA</h1>
+                <p class="text-lg text-slate-400">Entre para iniciar sua atividade</p>
+            </div>
+
+            <div class="glass-panel rounded-3xl p-8 fade-in-up" style="animation-delay: 0.1s;">
+                <div id="error-alert" class="hidden mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-center text-red-400 text-sm">
+                    <i class="fa-solid fa-circle-exclamation mr-3 text-lg"></i>
+                    <span id="error-text"></span>
+                </div>
+
+                <form id="login-form" class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">ID do Roteiro (Fornecido pelo Professor)</label>
+                        <input type="text" id="script_id" required class="block w-full px-4 py-3 bg-dark-800/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Seu Nome Completo</label>
+                        <input type="text" id="name" required class="block w-full px-4 py-3 bg-dark-800/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Seu RM (Registro de Matrícula)</label>
+                        <input type="text" id="rm" required class="block w-full px-4 py-3 bg-dark-800/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all font-mono">
+                    </div>
+                    
+                    <button type="submit" id="submit-btn" class="w-full bg-primary-600 hover:bg-primary-500 text-white font-medium py-4 rounded-xl shadow-lg shadow-primary-600/20 transition-all active:scale-[0.98] mt-4 flex justify-center items-center">
+                        <span id="btn-text">Começar Atividade</span>
+                        <i id="btn-icon" class="fa-solid fa-arrow-right ml-2"></i>
+                        <i id="btn-loader" class="fa-solid fa-spinner fa-spin ml-2 hidden"></i>
+                    </button>
+                </form>
+                
+                <div class="mt-8 pt-6 border-t border-slate-700/50 text-center">
+                    <a href="admin.html" class="text-sm text-slate-500 hover:text-slate-300 transition-colors"><i class="fa-solid fa-chalkboard-user mr-1"></i> Acesso do Professor</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+        // Se houver um script_id na URL (ex: ?script=123)
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlScriptId = urlParams.get('script');
+        if (urlScriptId) {
+            document.getElementById('script_id').value = urlScriptId;
+        }
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = document.getElementById('submit-btn');
+            const btnText = document.getElementById('btn-text');
+            const btnIcon = document.getElementById('btn-icon');
+            const btnLoader = document.getElementById('btn-loader');
+            const errorAlert = document.getElementById('error-alert');
+            
+            errorAlert.classList.add('hidden');
+            btn.disabled = true;
+            btnText.innerText = 'Conectando...';
+            btnIcon.classList.add('hidden');
+            btnLoader.classList.remove('hidden');
+            
+            try {
+                const payload = {
+                    action: 'student_login',
+                    script_id: document.getElementById('script_id').value,
+                    name: document.getElementById('name').value,
+                    rm: document.getElementById('rm').value
+                };
+                
+                const data = await fetchGAS(payload);
+                
+                // Salva no LocalStorage
+                localStorage.setItem('student_session', JSON.stringify({
+                    session_id: data.session_id,
+                    name: data.name,
+                    rm: payload.rm
+                }));
+                
+                // Redireciona para o chat
+                window.location.href = 'chat.html';
+                
+            } catch (err) {
+                document.getElementById('error-text').innerText = err.message;
+                errorAlert.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btnText.innerText = 'Começar Atividade';
+                btnIcon.classList.remove('hidden');
+                btnLoader.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
