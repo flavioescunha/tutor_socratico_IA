@@ -156,12 +156,17 @@ function doPost(e) {
              scriptSheet.getRange(i+1, 4).setValue(payload.attempts_limit);
            }
         }
-        // Delete old items
+        // Safely remove old items by rewriting the sheet
         var iData = itemSheet.getDataRange().getValues();
-        for(var j=iData.length-1; j>=1; j--) {
-           if(iData[j][1].toString() === scriptId.toString()) {
-             itemSheet.deleteRow(j+1);
+        var newIData = [iData[0]]; // header
+        for(var j=1; j<iData.length; j++) {
+           if(iData[j][1].toString() !== scriptId.toString()) {
+             newIData.push(iData[j]);
            }
+        }
+        itemSheet.clearContents();
+        if(newIData.length > 0) {
+           itemSheet.getRange(1, 1, newIData.length, newIData[0].length).setValues(newIData);
         }
       }
       
