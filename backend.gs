@@ -86,47 +86,58 @@ function callGeminiAPI(systemPrompt, chatHistory, primaryModel, apiKey) {
     "muteHttpExceptions": true
   };
   
-  // Lista de modelos para fallback. O primeiro tentado será o configurado.
-  var fallbackModels = [
-    (primaryModel || "").trim(),
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
-    "gemini-1.5-flash-latest",
-    "gemini-1.5-pro-latest"
-  ];
+  // 1. Tenta o modelo principal primeiro
+  var mainUrl = "https://generativelanguage.googleapis.com/v1beta/models/" + (primaryModel || "").trim() + ":generateContent?key=" + cleanKey;
+  var response = UrlFetchApp.fetch(mainUrl, options);
   
-  // Remove duplicados e vazios
-  var modelsToTry = fallbackModels.filter(function(item, pos) {
-      return item && fallbackModels.indexOf(item) === pos;
-  });
+  if (response.getResponseCode() === 200) {
+    var json = JSON.parse(response.getContentText());
+    return JSON.parse(json.candidates[0].content.parts[0].text);
+  }
   
-  var lastError = "";
+  // 2. Se falhou, busca dinamicamente a lista de modelos suportados
+  var listUrl = "https://generativelanguage.googleapis.com/v1beta/models?key=" + cleanKey;
+  var listResp = UrlFetchApp.fetch(listUrl, { "method": "get", "muteHttpExceptions": true });
   
-  for (var i = 0; i < modelsToTry.length; i++) {
-    var currentModel = modelsToTry[i];
-    var url = "https://generativelanguage.googleapis.com/v1beta/models/" + currentModel + ":generateContent?key=" + cleanKey;
+  if (listResp.getResponseCode() !== 200) {
+    throw new Error("Erro da API Gemini (Principal falhou e busca de fallback falhou). Detalhe: " + response.getContentText());
+  }
+  
+  var listJson = JSON.parse(listResp.getContentText());
+  var validModels = [];
+  if (listJson.models) {
+    listJson.models.forEach(function(m) {
+      if (m.supportedGenerationMethods && m.supportedGenerationMethods.indexOf("generateContent") !== -1) {
+        var name = m.name.replace("models/", "");
+        if (name !== (primaryModel || "").trim()) {
+           validModels.push(name);
+        }
+      }
+    });
+  }
+  
+  // O usuário sugeriu 60% de baixo pra cima (ou seja, pular os primeiros 40% do topo)
+  var startIndex = Math.floor(validModels.length * 0.4);
+  
+  // Monta a lista de fallback priorizando a partir de 60% de baixo pra cima, depois o resto
+  var fallbackModels = validModels.slice(startIndex).concat(validModels.slice(0, startIndex));
+  
+  var lastError = response.getContentText();
+  
+  // 3. Tenta os modelos do fallback dinâmico
+  for (var i = 0; i < fallbackModels.length; i++) {
+    var fallbackUrl = "https://generativelanguage.googleapis.com/v1beta/models/" + fallbackModels[i] + ":generateContent?key=" + cleanKey;
+    var fbResp = UrlFetchApp.fetch(fallbackUrl, options);
     
-    var response = UrlFetchApp.fetch(url, options);
-    var responseCode = response.getResponseCode();
-    var responseText = response.getContentText();
-    var json;
-    
-    try {
-      json = JSON.parse(responseText);
-    } catch(e) {
-      json = {error: {message: responseText}};
-    }
-    
-    if (responseCode === 200) {
-      return JSON.parse(json.candidates[0].content.parts[0].text);
+    if (fbResp.getResponseCode() === 200) {
+       var fbJson = JSON.parse(fbResp.getContentText());
+       return JSON.parse(fbJson.candidates[0].content.parts[0].text);
     } else {
-      lastError = json.error ? json.error.message : responseText;
-      // Continua para o próximo modelo do loop
+       lastError = fbResp.getContentText();
     }
   }
   
-  throw new Error("Erro da API Gemini após tentar múltiplos modelos. Último erro: " + lastError);
+  throw new Error("Erro da API Gemini após esgotar todos os fallbacks dinâmicos. Último erro: " + lastError);
 }
 
 function doPost(e) {
