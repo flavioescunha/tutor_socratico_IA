@@ -21,9 +21,15 @@
         .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.05); }
         .fade-in-up { animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(20px); }
         @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+        /* Bloqueio visual de seleção de texto (opcional) */
+        .no-select {
+            -webkit-user-select: none; /* Safari */
+            -ms-user-select: none; /* IE 10 and IE 11 */
+            user-select: none; /* Standard syntax */
+        }
     </style>
 </head>
-<body class="bg-dark-900 text-slate-200 min-h-screen font-sans flex flex-col relative overflow-x-hidden">
+<body class="bg-dark-900 text-slate-200 min-h-screen font-sans flex flex-col relative overflow-x-hidden no-select" oncontextmenu="return false;">
     <div class="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary-600/20 blur-[120px] pointer-events-none"></div>
     <div class="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-600/20 blur-[120px] pointer-events-none"></div>
     
@@ -79,6 +85,20 @@
         if (urlScriptId) {
             document.getElementById('script_id').value = urlScriptId;
         }
+
+        // Anti-cola: bloqueia atalhos e ações do mouse
+        document.addEventListener('copy', e => e.preventDefault());
+        document.addEventListener('cut', e => e.preventDefault());
+        document.addEventListener('paste', e => e.preventDefault());
+        
+        document.addEventListener('keydown', e => {
+            if (e.ctrlKey || e.metaKey) {
+                const key = e.key.toLowerCase();
+                if (key === 'c' || key === 'v' || key === 'x' || key === 'a') {
+                    e.preventDefault();
+                }
+            }
+        });
 
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
