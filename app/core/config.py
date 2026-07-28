@@ -11,7 +11,7 @@ def get_version():
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Tutor Socrático IA"
     APP_VERSION: str = get_version()
-    DATABASE_URL: str = "sqlite:///./socratic_tutor.db"
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./socratic_tutor.db")
     
     # LLM Settings
     LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "xai")

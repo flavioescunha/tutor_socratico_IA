@@ -2,6 +2,9 @@ import os
 import subprocess
 import sys
 
+# Força o terminal a aceitar os emojis UTF-8 no Windows
+sys.stdout.reconfigure(encoding='utf-8')
+
 def increment_version(version_str):
     parts = version_str.strip().split('.')
     if len(parts) != 3:
