@@ -450,6 +450,10 @@
                 msg.classList.remove('hidden');
                 document.getElementById('import-students-text').value = '';
                 
+                if (window.currentStudentsScriptId) {
+                    loadStudents(window.currentStudentsScriptId);
+                }
+                
             } catch (err) {
                 msg.className = "mt-3 text-sm text-red-400";
                 msg.innerText = `Erro: ${err.message}`;
