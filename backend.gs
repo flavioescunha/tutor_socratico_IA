@@ -500,6 +500,7 @@ function doPost(e) {
       systemPrompt += "REGRAS CRÍTICAS:\n";
       systemPrompt += "- VOCÊ É ESTRITAMENTE PROIBIDO DE DAR A RESPOSTA PRONTA. Faça perguntas instigantes.\n";
       systemPrompt += "- Faça perguntas abertas e reflexivas. Jamais faça perguntas de 'sim/não' ou que permitam respostas secas. Exija (e induza) o aluno a elaborar a resposta na forma de um texto/parágrafo coeso, com começo, meio e fim.\n";
+      systemPrompt += "- A 'justificativa_nota' deve ser curta e objetiva, contendo no MÁXIMO 240 caracteres.\n";
       systemPrompt += "- Avalie se o aluno demonstrou compreensão do [OBJETIVO DO ITEM ATUAL].\n";
       
       if (nextItemDesc) {
@@ -572,7 +573,7 @@ function doPost(e) {
          // Salva a nota e justificativa (máx 240 char) desta etapa nas colunas da direita
          var colNota = 8 + (currentOrder - 1) * 2;
          var colJust = 9 + (currentOrder - 1) * 2;
-         var justTxt = (llmResp.justificativa_nota || "").substring(0, 240);
+         var justTxt = (llmResp.justificativa_nota || "");
          sessionSheet.getRange(rowIndex, colNota).setValue(llmResp.nota_etapa || "");
          sessionSheet.getRange(rowIndex, colJust).setValue(justTxt);
 
