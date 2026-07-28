@@ -1,5 +1,5 @@
 // Configure sua URL do Google Apps Script Web App AQUI
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwZQadzCONPI_lFhPE3Xlsadq5o4Q3SRg0eaWUvdFgLCIkqcTpyIuQYlAyWI_DcxYY6ew/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycby12ioVbLmPOxgzLjdgLgrHLEMHrsS7NLQyOzB9NT-b6wONyJHRPpL6opiqPrvjti9j1Q/exec";
 
 async function fetchGAS(payload) {
     if (GAS_URL === "SUA_URL_DO_GOOGLE_APPS_SCRIPT_AQUI") {
