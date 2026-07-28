@@ -158,6 +158,16 @@
                     <h2 class="text-2xl font-bold text-white">Alunos do Roteiro</h2>
                 </div>
             </div>
+
+            <!-- Import Students Panel -->
+            <div class="glass-panel rounded-3xl p-6 sm:p-8 mb-6">
+                <h3 class="text-lg font-semibold text-white mb-4">Importar Alunos (Copiar do Excel)</h3>
+                <p class="text-sm text-slate-400 mb-4">Cole abaixo os dados das colunas na seguinte ordem: <strong>Número, Nome, RM, Série</strong>.</p>
+                <textarea id="import-students-text" class="w-full bg-dark-800/50 border border-slate-700 rounded-xl text-white px-4 py-3 text-sm resize-y mb-4 focus:ring-1 focus:ring-indigo-500" rows="3" placeholder="1&#9;João da Silva&#9;12345&#9;1º Ano..."></textarea>
+                <button onclick="importStudents()" id="btn-import-students" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"><i class="fa-solid fa-file-import mr-2"></i>Salvar Alunos</button>
+                <div id="import-students-msg" class="hidden mt-3 text-sm"></div>
+            </div>
+
             <div class="glass-panel rounded-3xl p-6 sm:p-8">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
@@ -329,6 +339,57 @@
                 });
             } catch (err) {
                 tbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-red-400">Erro: ${err.message}</td></tr>`;
+            }
+        }
+
+        async function importStudents() {
+            const text = document.getElementById('import-students-text').value.trim();
+            if (!text) return;
+            
+            const btn = document.getElementById('btn-import-students');
+            const msg = document.getElementById('import-students-msg');
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Salvando...';
+            msg.classList.add('hidden');
+            
+            const lines = text.split('\n');
+            const studentsToSave = [];
+            
+            lines.forEach(line => {
+                const parts = line.split('\t');
+                if (parts.length >= 3) {
+                    const name = parts[1].trim();
+                    const rm = parts[2].trim();
+                    if (name && rm) {
+                        studentsToSave.push({ name: name, rm: rm });
+                    }
+                }
+            });
+            
+            if (studentsToSave.length === 0) {
+                msg.className = "mt-3 text-sm text-red-400";
+                msg.innerText = "Nenhum aluno válido encontrado. Certifique-se de colar do Excel com as colunas corretas (Número, Nome, RM, Série).";
+                msg.classList.remove('hidden');
+                btn.innerHTML = '<i class="fa-solid fa-file-import mr-2"></i>Salvar Alunos';
+                return;
+            }
+            
+            try {
+                const data = await fetchGAS({ 
+                    action: 'admin_add_students', 
+                    students: studentsToSave 
+                });
+                
+                msg.className = "mt-3 text-sm text-green-400";
+                msg.innerText = `${data.count} aluno(s) adicionado(s) com sucesso!`;
+                msg.classList.remove('hidden');
+                document.getElementById('import-students-text').value = '';
+                
+            } catch (err) {
+                msg.className = "mt-3 text-sm text-red-400";
+                msg.innerText = `Erro: ${err.message}`;
+                msg.classList.remove('hidden');
+            } finally {
+                btn.innerHTML = '<i class="fa-solid fa-file-import mr-2"></i>Salvar Alunos';
             }
         }
 

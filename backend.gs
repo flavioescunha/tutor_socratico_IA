@@ -228,6 +228,28 @@ function doPost(e) {
       }
       result.students = students;
     }
+    else if (action === "admin_add_students") {
+      var studentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Students");
+      if (!studentSheet) {
+        studentSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet("Students");
+        studentSheet.appendRow(["rm", "name"]);
+      }
+      var existingData = studentSheet.getDataRange().getValues();
+      var existingRMs = new Set();
+      for (var i = 1; i < existingData.length; i++) {
+        existingRMs.add(existingData[i][0].toString());
+      }
+      
+      var count = 0;
+      payload.students.forEach(function(s) {
+        if (s.rm && s.name && !existingRMs.has(s.rm.toString())) {
+          studentSheet.appendRow([s.rm, s.name]);
+          existingRMs.add(s.rm.toString());
+          count++;
+        }
+      });
+      result.count = count;
+    }
     
     // --- STUDENT ACTIONS ---
     else if (action === "student_login") {
