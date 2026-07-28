@@ -449,13 +449,15 @@ function doPost(e) {
       }
       
       // Build Prompt
-      var systemPrompt = "Você é um Tutor Socrático especializado em IA. Seu objetivo é ajudar o aluno a aprender guiando-o.\n";
-      systemPrompt += "VOCÊ É ESTRITAMENTE PROIBIDO DE DAR A RESPOSTA PRONTA. Faça perguntas.\n";
-      systemPrompt += "Sua resposta deve ser estritamente um JSON: {\"analise_raciocinio_aluno\": \"...\", \"status_item\": \"aprovado|refazer|falha_definitiva\", \"nota_etapa\": \"0 a 10\", \"justificativa_nota\": \"...\", \"resposta_chat\": \"...\"}\n\n";
+      var systemPrompt = "Você é um Tutor Socrático especializado em IA. Seu objetivo é ajudar o aluno a aprender guiando-o APENAS pelo tópico atual.\n";
+      systemPrompt += "REGRAS CRÍTICAS:\n";
+      systemPrompt += "- VOCÊ É ESTRITAMENTE PROIBIDO DE DAR A RESPOSTA PRONTA. Faça perguntas instigantes.\n";
+      systemPrompt += "- FOQUE 100% EXCLUSIVAMENTE NO [OBJETIVO DO ITEM ATUAL]. NUNCA introduza conceitos, perguntas ou etapas que não estejam expressamente descritos no objetivo atual.\n";
+      systemPrompt += "- Se o aluno já demonstrou compreensão do objetivo atual, apenas parabenize-o brevemente e finalize sua resposta. Não inicie o próximo assunto.\n";
+      systemPrompt += "Sua resposta deve ser estritamente um JSON no formato: {\"analise_raciocinio_aluno\": \"...\", \"status_item\": \"aprovado|refazer|falha_definitiva\", \"nota_etapa\": \"0 a 10\", \"justificativa_nota\": \"...\", \"resposta_chat\": \"...\"}\n\n";
       systemPrompt += "[CONTEXTO DO ROTEIRO]\nDisciplina: " + scriptSubject + "\nTópico: " + scriptTitle + "\n\n";
       systemPrompt += "[OBJETIVO DO ITEM ATUAL]\n" + currentItemDesc + "\n\n";
-      if (nextItemDesc) systemPrompt += "[PRÓXIMO OBJETIVO DO ROTEIRO]\n" + nextItemDesc + "\n\n";
-      systemPrompt += "[INSTRUÇÕES]\n1. Se o aluno compreendeu, status = 'aprovado'.\n2. Se não, status = 'refazer'.\n";
+      systemPrompt += "[INSTRUÇÕES DE STATUS]\n1. Se o aluno compreendeu satisfatoriamente o OBJETIVO ATUAL, status_item = 'aprovado'.\n2. Se o aluno ainda precisa refletir ou errou, status_item = 'refazer'.\n";
       
       // Call LLM
       var llmResp = callGeminiAPI(systemPrompt, chatHistory, config.llm_api_key);
