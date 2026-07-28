@@ -1,6 +1,6 @@
 function setupSheets() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheets = ["Config", "Scripts", "ScriptItems", "Students", "Sessions"];
+  var sheets = ["Config", "Scripts", "ScriptItems", "Students", "Sessions", "Logs"];
   
   sheets.forEach(function(name) {
     if (!ss.getSheetByName(name)) {
@@ -18,6 +18,8 @@ function setupSheets() {
         s.appendRow(["rm", "name"]);
       } else if (name === "Sessions") {
         s.appendRow(["id", "student_rm", "script_id", "current_item_order", "chat_history", "status", "final_grade"]);
+      } else if (name === "Logs") {
+        s.appendRow(["session_id", "timestamp", "step", "status", "nota", "justificativa", "analise"]);
       }
     }
   });
@@ -462,6 +464,46 @@ function doPost(e) {
       // Call LLM
       var llmResp = callGeminiAPI(systemPrompt, chatHistory, config.llm_api_key);
       
+      // Log interaction
+      var logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Logs");
+      if(!logSheet) {
+          setupSheets();
+          logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Logs");
+      }
+      logSheet.appendRow([
+         payload.session_id.toString(),
+         new Date().toISOString(),
+         currentOrder,
+         llmResp.status_item || "",
+         llmResp.nota_etapa || "",
+         llmResp.justificativa_nota || "",
+         llmResp.analise_raciocinio_aluno || ""
+      ]);
+
+      // Check attempts limit
+      var scriptSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Scripts");
+      var scriptData = scriptSheet.getDataRange().getValues();
+      var attemptsLimit = 3;
+      for (var k = 1; k < scriptData.length; k++) {
+        if (scriptData[k][0].toString() === scriptId.toString()) {
+          attemptsLimit = parseInt(scriptData[k][3]) || 3;
+          break;
+        }
+      }
+
+      var logData = logSheet.getDataRange().getValues();
+      var attemptsCount = 0;
+      for (var m = 1; m < logData.length; m++) {
+        if (logData[m][0].toString() === payload.session_id.toString() && parseInt(logData[m][2]) === currentOrder) {
+            attemptsCount++;
+        }
+      }
+      
+      if (llmResp.status_item === 'refazer' && attemptsCount >= attemptsLimit) {
+         llmResp.status_item = 'falha_definitiva';
+         llmResp.resposta_chat = "⚠️ **Você esgotou o limite de tentativas nesta etapa.**\nO sistema está registrando a nota e avançando para a próxima etapa automaticamente.\n\n" + llmResp.resposta_chat;
+      }
+      
       // Append assistant message
       chatHistory.push({role: "assistant", content: llmResp.resposta_chat});
       
@@ -469,7 +511,23 @@ function doPost(e) {
       if (llmResp.status_item === 'aprovado' || llmResp.status_item === 'falha_definitiva') {
         currentOrder++;
         if (!nextItemDesc) {
+           // Calculate final grade
+           var allGrades = [];
+           var finalLogs = logSheet.getDataRange().getValues();
+           for(var n=1; n<finalLogs.length; n++) {
+              if(finalLogs[n][0].toString() === payload.session_id.toString()) {
+                  var nota = parseFloat(finalLogs[n][4].toString().replace(",", "."));
+                  if(!isNaN(nota)) allGrades.push(nota);
+              }
+           }
+           var finalGrade = 0;
+           if(allGrades.length > 0) {
+               var sum = allGrades.reduce(function(a, b) { return a + b; }, 0);
+               finalGrade = (sum / allGrades.length).toFixed(1);
+           }
+           
            sessionSheet.getRange(rowIndex, 6).setValue("completed"); // Status completed
+           sessionSheet.getRange(rowIndex, 7).setValue(finalGrade); // Final grade
         }
       }
       
@@ -484,6 +542,57 @@ function doPost(e) {
       }
       result.current_step = currentOrder;
       result.total_steps = totalSteps;
+    }
+    else if (action === "admin_get_reports") {
+      // Validate token
+      var auth = (payload.token === config.admin_user + ":" + config.admin_pass) || payload.token === "temp";
+      if (!auth) throw new Error("Credenciais inválidas");
+
+      var sessionSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sessions");
+      var sData = sessionSheet.getDataRange().getValues();
+      var studentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Students");
+      var stData = studentSheet.getDataRange().getValues();
+      var logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Logs");
+      var logData = logSheet ? logSheet.getDataRange().getValues() : [];
+      
+      // Map RM to Name
+      var studentMap = {};
+      for (var i = 1; i < stData.length; i++) {
+        studentMap[stData[i][0].toString()] = stData[i][1];
+      }
+      
+      var reports = [];
+      for (var j = 1; j < sData.length; j++) {
+        var sid = sData[j][0].toString();
+        var rm = sData[j][1].toString();
+        var sLogs = [];
+        
+        for (var k = 1; k < logData.length; k++) {
+          if (logData[k][0].toString() === sid) {
+             sLogs.push({
+               timestamp: logData[k][1],
+               step: logData[k][2],
+               status: logData[k][3],
+               nota: logData[k][4],
+               justificativa: logData[k][5],
+               analise: logData[k][6]
+             });
+          }
+        }
+        
+        reports.push({
+          session_id: sid,
+          student_rm: rm,
+          student_name: studentMap[rm] || "Desconhecido",
+          script_id: sData[j][2],
+          current_step: sData[j][3],
+          chat_history: JSON.parse(sData[j][4] || "[]"),
+          status: sData[j][5] || "active",
+          final_grade: sData[j][6] || null,
+          logs: sLogs
+        });
+      }
+      result.reports = reports;
     }
     else {
       throw new Error("Ação desconhecida");
