@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+sqlalchemy
+jinja2
+python-multipart
+python-dotenv==1.0.0
+pytest==7.4.3
+requests==2.31.0
+openai
+pydantic
+pydantic-settings

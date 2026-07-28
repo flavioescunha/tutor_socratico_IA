@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block topbar %}
+<header class="glass-panel border-b border-slate-700/50 sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-600/20 rounded-lg flex items-center justify-center text-indigo-400">
+                <i class="fa-solid fa-chalkboard-user"></i>
+            </div>
+            <h2 class="text-sm font-semibold text-white">Painel do Professor</h2>
+        </div>
+        <div class="flex items-center space-x-4">
+            <span class="text-xs px-2 py-1 bg-dark-800 rounded-lg text-slate-400 border border-slate-700 font-mono tracking-wider">v{{ app_version }}</span>
+            <span class="text-sm text-slate-400">Olá, <span class="text-white">{{ admin.username }}</span></span>
+            <a href="/admin/register_teacher" class="text-sm text-indigo-400 hover:text-indigo-300 font-medium transition-colors ml-2"><i class="fa-solid fa-user-plus"></i> Novo Professor</a>
+            <a href="/admin/settings" class="text-sm text-slate-500 hover:text-white transition-colors ml-4"><i class="fa-solid fa-gear"></i> Configurações</a>
+            <a href="/" class="text-sm text-slate-500 hover:text-white transition-colors"><i class="fa-solid fa-right-from-bracket"></i> Sair</a>
+        </div>
+    </div>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-6 py-8">
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <!-- Card: Status Google Sheets -->
+        <div class="glass-panel p-6 rounded-2xl flex items-center space-x-4">
+            <div class="w-12 h-12 rounded-xl bg-green-500/20 text-green-400 flex items-center justify-center text-xl">
+                <i class="fa-brands fa-google-drive"></i>
+            </div>
+            <div>
+                <h3 class="text-sm text-slate-400">Sincronização</h3>
+                <p class="font-medium text-white flex items-center">
+                    Planilha Vinculada <i class="fa-solid fa-circle-check text-green-400 ml-2 text-xs"></i>
+                </p>
+                {% if admin.sheet_url %}
+                <a href="{{ admin.sheet_url }}" target="_blank" class="text-xs text-indigo-400 hover:text-indigo-300 transition-colors mt-1 inline-flex items-center">
+                    <i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> Abrir Planilha
+                </a>
+                {% else %}
+                <span class="text-xs text-indigo-400 mt-1 block">Via Webhook Ativo</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Estatísticas (Mocadas para o protótipo) -->
+        <div class="glass-panel p-6 rounded-2xl flex items-center space-x-4">
+            <div class="w-12 h-12 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-xl">
+                <i class="fa-solid fa-users"></i>
+            </div>
+            <div>
+                <h3 class="text-sm text-slate-400">Alunos Ativos</h3>
+                <p class="text-2xl font-display font-bold text-white">{{ total_students }}</p>
+            </div>
+        </div>
+        
+        <div class="glass-panel p-6 rounded-2xl flex items-center space-x-4">
+            <div class="w-12 h-12 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center text-xl">
+                <i class="fa-solid fa-book-open"></i>
+            </div>
+            <div>
+                <h3 class="text-sm text-slate-400">Roteiros Criados</h3>
+                <p class="text-2xl font-display font-bold text-white">{{ admin.scripts|length }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gerenciador de Roteiros -->
+    <div class="glass-panel rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-display font-semibold text-white">Meus Roteiros Socráticos</h3>
+            <a href="/admin/scripts/new" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors inline-block">
+                <i class="fa-solid fa-plus mr-2"></i> Novo Roteiro
+            </a>
+        </div>
+        
+        <div class="bg-dark-900/50 rounded-xl border border-slate-700/50 overflow-hidden">
+            <table class="w-full text-left text-sm text-slate-300">
+                <thead class="bg-dark-800 text-xs uppercase font-medium text-slate-400 border-b border-slate-700/50">
+                    <tr>
+                        <th class="px-6 py-4">Título</th>
+                        <th class="px-6 py-4">Disciplina</th>
+                        <th class="px-6 py-4">Itens</th>
+                        <th class="px-6 py-4">Tentativas Limite</th>
+                        <th class="px-6 py-4 text-right">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700/50">
+                    {% for script in admin.scripts %}
+                    <tr class="hover:bg-dark-800/50 transition-colors">
+                        <td class="px-6 py-4 font-medium text-white">{{ script.title }}</td>
+                        <td class="px-6 py-4">{{ script.subject }}</td>
+                        <td class="px-6 py-4">{{ script.items|length }} etapas</td>
+                        <td class="px-6 py-4">{{ script.attempts_limit }}</td>
+                        <td class="px-6 py-4 text-right space-x-2">
+                            <a href="/admin/scripts/{{ script.id }}/students" class="text-slate-400 hover:text-green-400 transition-colors" title="Gerenciar Alunos e Link"><i class="fa-solid fa-users"></i></a>
+                            <a href="/admin/scripts/{{ script.id }}/edit" class="text-slate-400 hover:text-indigo-400 transition-colors" title="Editar"><i class="fa-solid fa-pen"></i></a>
+                            <form action="/api/admin/scripts/{{ script.id }}/delete" method="POST" class="inline" onsubmit="return confirm('Tem certeza que deseja excluir o roteiro \'{{ script.title }}\'?');">
+                                <button type="submit" class="text-slate-400 hover:text-red-400 transition-colors" title="Excluir"><i class="fa-solid fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-8 text-center text-slate-500">
+                            <div class="mb-2"><i class="fa-solid fa-folder-open text-2xl text-slate-600"></i></div>
+                            Nenhum roteiro criado.<br>
+                            Clique em <strong>Novo Roteiro</strong> acima para começar!
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

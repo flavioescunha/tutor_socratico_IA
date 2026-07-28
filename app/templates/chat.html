@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+
+{% block topbar %}
+<style>
+    @media print {
+        body {
+            display: none !important;
+        }
+    }
+</style>
+<header class="glass-panel border-b border-slate-700/50 sticky top-0 z-40">
+    <div class="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-primary-600/20 rounded-lg flex items-center justify-center text-primary-400">
+                <i class="fa-solid fa-robot"></i>
+            </div>
+            <div>
+                <h2 class="text-sm font-semibold text-white leading-tight">Socrates AI</h2>
+                <p class="text-xs text-slate-400">Tutor Socrático</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-4">
+            <div class="text-right hidden sm:block">
+                <p class="text-sm font-medium text-white">{{ student.name }}</p>
+                <p class="text-xs text-slate-400">RM: {{ student.rm }}</p>
+            </div>
+            <a href="/chat" title="Voltar aos roteiros" class="w-8 h-8 rounded-full bg-dark-800 hover:bg-dark-700 flex items-center justify-center text-slate-400 transition-colors">
+                <i class="fa-solid fa-arrow-left"></i>
+            </a>
+        </div>
+    </div>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto w-full h-[calc(100vh-4rem)] flex flex-col p-4">
+    <!-- Roteiro Info & Progress -->
+    <div class="bg-dark-800/60 rounded-2xl p-4 mb-4 border border-slate-700/50">
+        <h3 class="text-lg font-display font-semibold text-white mb-2">{{ script.title }}</h3>
+        
+        <div class="flex items-center justify-between text-sm text-slate-400 mb-2">
+            <span>Progresso da Sessão</span>
+            <span id="progress-text" class="font-medium text-primary-400">0 / {{ script.items|length }}</span>
+        </div>
+        
+        <div class="w-full bg-dark-900 rounded-full h-2">
+            <div id="progress-bar" class="bg-primary-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+        </div>
+    </div>
+
+    <!-- Chat Window -->
+    <div id="chat-container" class="flex-grow glass-panel rounded-2xl p-4 mb-4 overflow-y-auto space-y-4">
+        <!-- Histórico do Chat -->
+        {% if chat_history %}
+            {% for msg in chat_history %}
+                {% if msg.role == 'assistant' %}
+                <div class="flex items-start space-x-3">
+                    <div class="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0 mt-1">
+                        <i class="fa-solid fa-robot text-xs text-white"></i>
+                    </div>
+                    <div class="msg-bubble msg-ai p-4 text-sm text-slate-200 shadow-sm max-w-[85%] whitespace-pre-wrap">{{ msg.content }}</div>
+                </div>
+                {% else %}
+                <div class="flex items-start space-x-3 flex-row-reverse space-x-reverse">
+                    <div class="w-8 h-8 rounded-full bg-dark-700 flex items-center justify-center flex-shrink-0 mt-1">
+                        <i class="fa-solid fa-user text-xs text-white"></i>
+                    </div>
+                    <div class="msg-bubble msg-user p-4 text-sm text-slate-200 shadow-sm max-w-[85%] whitespace-pre-wrap">{{ msg.content }}</div>
+                </div>
+                {% endif %}
+            {% endfor %}
+        {% else %}
+            <!-- Fallback caso não haja histórico inicializado -->
+            <div class="flex items-start space-x-3">
+                <div class="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0 mt-1">
+                    <i class="fa-solid fa-robot text-xs text-white"></i>
+                </div>
+                <div class="msg-bubble msg-ai p-4 text-sm text-slate-200 shadow-sm max-w-[85%] whitespace-pre-wrap">Olá, {{ student.name }}! Vamos começar o roteiro <strong>{{ script.title }}</strong>. Estou aqui para te ajudar a aprender. O que você sabe sobre o primeiro assunto?</div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Input Area -->
+    <div class="bg-dark-800/80 rounded-2xl p-2 border border-slate-700/50 flex-shrink-0 relative">
+        <form id="chat-form" class="flex flex-col gap-2" onsubmit="sendMessage(event)">
+            <input type="hidden" id="script-id" value="{{ script.id }}">
+            <div class="flex items-end gap-2">
+                <textarea id="user-input" rows="1" maxlength="1000"
+                    class="flex-grow bg-transparent border-0 text-white placeholder-slate-500 focus:ring-0 resize-none p-3 max-h-32 text-sm"
+                    placeholder="Digite sua resposta aqui com suas próprias palavras..." required></textarea>
+                
+                <button type="submit" id="send-btn" class="w-12 h-12 rounded-xl bg-primary-600 hover:bg-primary-500 text-white flex items-center justify-center transition-all flex-shrink-0">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+            <div class="flex justify-between px-3 pb-1">
+                <span class="text-[10px] text-slate-500">Seja objetivo na sua resposta.</span>
+                <span id="char-count" class="text-[10px] text-slate-500">0 / 1000</span>
+            </div>
+        </form>
+        
+        <!-- Anti-paste alert toast -->
+        <div id="paste-alert" class="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-red-500/90 text-white text-xs px-4 py-2 rounded-lg font-medium opacity-0 transition-opacity pointer-events-none">
+            Para fixar o aprendizado, digite com suas palavras!
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const chatContainer = document.getElementById('chat-container');
+    const chatForm = document.getElementById('chat-form');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    const pasteAlert = document.getElementById('paste-alert');
+    const charCount = document.getElementById('char-count');
+    const scriptId = document.getElementById('script-id').value;
+    
+    // Auto-resize textarea and count characters
+    userInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight < 128 ? this.scrollHeight : 128) + 'px';
+        
+        const len = this.value.length;
+        charCount.textContent = `${len} / 1000`;
+        if(len >= 950) {
+            charCount.classList.add('text-red-400');
+            charCount.classList.remove('text-slate-500');
+        } else {
+            charCount.classList.remove('text-red-400');
+            charCount.classList.add('text-slate-500');
+        }
+    });
+
+    // Enter to submit (Shift+Enter for new line)
+    userInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (this.value.trim() !== '') {
+                chatForm.dispatchEvent(new Event('submit'));
+            }
+        }
+    });
+
+    // Anti-Copy/Paste Protection
+    function showAntiCheatAlert(msg) {
+        pasteAlert.innerText = msg;
+        userInput.classList.add('no-paste-effect', 'border', 'border-red-500', 'bg-red-500/10');
+        pasteAlert.classList.remove('opacity-0');
+        pasteAlert.classList.add('opacity-100');
+        
+        setTimeout(() => {
+            userInput.classList.remove('no-paste-effect', 'border', 'border-red-500', 'bg-red-500/10');
+            pasteAlert.classList.remove('opacity-100');
+            pasteAlert.classList.add('opacity-0');
+        }, 2000);
+    }
+
+    document.addEventListener('copy', function(e) {
+        e.preventDefault();
+        showAntiCheatAlert('Copiar texto não é permitido (Ctrl+C bloqueado)');
+    });
+
+    document.addEventListener('cut', function(e) {
+        e.preventDefault();
+        showAntiCheatAlert('Recortar texto não é permitido (Ctrl+X bloqueado)');
+    });
+
+    document.addEventListener('paste', function(e) {
+        e.preventDefault();
+        showAntiCheatAlert('Colar texto não é permitido (Ctrl+V bloqueado). Digite!');
+    });
+
+    function addMessage(text, isAi) {
+        const div = document.createElement('div');
+        div.className = `flex items-start space-x-3 ${isAi ? '' : 'flex-row-reverse space-x-reverse'}`;
+        
+        const avatar = isAi ? 
+            `<div class="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0 mt-1"><i class="fa-solid fa-robot text-xs text-white"></i></div>` :
+            `<div class="w-8 h-8 rounded-full bg-dark-700 flex items-center justify-center flex-shrink-0 mt-1"><i class="fa-solid fa-user text-xs text-white"></i></div>`;
+            
+        const bubbleClass = isAi ? 'msg-ai' : 'msg-user';
+        
+        div.innerHTML = `
+            ${avatar}
+            <div class="msg-bubble ${bubbleClass} p-4 text-sm text-slate-200 shadow-sm max-w-[85%] whitespace-pre-wrap">${text}</div>
+        `;
+        
+        chatContainer.appendChild(div);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+    
+    function showLoader() {
+        const div = document.createElement('div');
+        div.id = 'ai-loader';
+        div.className = 'flex items-start space-x-3';
+        div.innerHTML = `
+            <div class="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0 mt-1"><i class="fa-solid fa-robot text-xs text-white"></i></div>
+            <div class="msg-bubble msg-ai p-4 text-sm max-w-[85%]">
+                <div class="typing-indicator flex items-center h-4">
+                    <span></span><span></span><span></span>
+                </div>
+            </div>
+        `;
+        chatContainer.appendChild(div);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+    
+    function hideLoader() {
+        const loader = document.getElementById('ai-loader');
+        if (loader) loader.remove();
+    }
+
+    function updateProgress(progressStr) {
+        const parts = progressStr.split('/');
+        if (parts.length === 2) {
+            const current = parseInt(parts[0]);
+            const total = parseInt(parts[1]);
+            const pct = (current / total) * 100;
+            
+            document.getElementById('progress-text').innerText = progressStr;
+            document.getElementById('progress-bar').style.width = `${pct}%`;
+        }
+    }
+
+    async function sendMessage(e) {
+        e.preventDefault();
+        const text = userInput.value.trim();
+        if (!text) return;
+
+        // UI Updates
+        addMessage(text, false);
+        userInput.value = '';
+        userInput.style.height = 'auto';
+        userInput.disabled = true;
+        sendBtn.disabled = true;
+        
+        showLoader();
+
+        try {
+            const response = await fetch(`/api/chat/${scriptId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: text })
+            });
+            
+            const data = await response.json();
+            
+            hideLoader();
+            addMessage(data.reply, true);
+            
+            if (data.item_progress) {
+                updateProgress(data.item_progress);
+            }
+            
+            if (data.status === 'completed') {
+                userInput.placeholder = "Roteiro finalizado!";
+                sendBtn.innerHTML = '<i class="fa-solid fa-lock"></i>';
+            } else {
+                userInput.disabled = false;
+                sendBtn.disabled = false;
+                userInput.focus();
+            }
+            
+        } catch (error) {
+            hideLoader();
+            addMessage("Desculpe, houve um erro ao conectar com o tutor. Tente novamente.", true);
+            userInput.disabled = false;
+            sendBtn.disabled = false;
+        }
+    }
+</script>
+{% endblock %}
