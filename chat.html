@@ -297,7 +297,7 @@
                     session_id: sessionData.session_id
                 });
                 
-                if (data.initial_instructions && data.initial_instructions.trim() !== '' && data.chat_history.length <= 1) {
+                if (data.initial_instructions && data.initial_instructions.trim() !== '') {
                     const overlay = document.getElementById('initial-instructions-overlay');
                     document.getElementById('initial-instructions-content').innerText = data.initial_instructions;
                     overlay.classList.remove('hidden');
