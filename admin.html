@@ -524,6 +524,7 @@
                     document.getElementById('script-subject').value = data.script.subject;
                     document.getElementById('script-attempts').value = data.script.attempts_limit;
                     document.getElementById('script-initial-instructions').value = data.script.initial_instructions || '';
+                    document.getElementById('script-initial-instructions').value = data.script.initial_instructions || '';
                     data.script.items.forEach(i => addScriptItem(i.description));
                 } catch (e) {
                     alert('Erro ao carregar roteiro');
