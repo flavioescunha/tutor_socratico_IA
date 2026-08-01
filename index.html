@@ -82,8 +82,16 @@
         // Se houver um script_id na URL (ex: ?script=123)
         const urlParams = new URLSearchParams(window.location.search);
         const urlScriptId = urlParams.get('script');
+        const urlTest = urlParams.get('test') === 'true';
         if (urlScriptId) {
             document.getElementById('script_id').value = urlScriptId;
+        }
+        if (urlTest) {
+            document.getElementById('name').value = 'Professor (Teste)';
+            document.getElementById('rm').value = '00000';
+            setTimeout(() => {
+                document.getElementById('submit-btn').click();
+            }, 500);
         }
 
         // Anti-cola: bloqueia atalhos e ações do mouse
@@ -120,7 +128,8 @@
                     action: 'student_login',
                     script_id: document.getElementById('script_id').value,
                     name: document.getElementById('name').value,
-                    rm: document.getElementById('rm').value
+                    rm: document.getElementById('rm').value,
+                    is_test: urlTest
                 };
                 
                 const data = await fetchGAS(payload);

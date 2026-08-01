@@ -420,57 +420,12 @@ function doPost(e) {
     
     // --- STUDENT ACTIONS ---
     else if (action === "student_login") {
-      var studentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Students");
-      var data = studentSheet.getDataRange().getValues();
-      var foundName = null;
+      var isTest = payload.is_test === true;
+      var studentName, sessionId, chatHistory, title = "Roteiro";
+      var attemptsLimit = 3;
       
-      var inputName = payload.name || "";
-      var inputRM = payload.rm.toString().trim();
-      
-      for (var i = 1; i < data.length; i++) {
-        var dbRM = data[i][0].toString().trim();
-        var dbNameOriginal = data[i][1].toString();
-        var dbScriptId = data[i][2] ? data[i][2].toString() : "";
-        // Remove acentos e converte para maiúsculo para comparar
-        var dbNameNormalized = dbNameOriginal.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
-        
-        if (dbRM === inputRM && dbNameNormalized === inputName && (dbScriptId === payload.script_id.toString() || dbScriptId === "")) {
-          foundName = dbNameOriginal; // Retorna o nome original com formatação correta
-          break;
-        }
-      }
-      
-      if (!foundName) {
-        throw new Error("Credenciais inválidas ou você não está cadastrado neste roteiro. Verifique seu Nome Completo e RM.");
-      }
-      
-      var studentName = foundName;
-      
-      // Init or Get session
-      var sessionSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sessions");
-      var sData = sessionSheet.getDataRange().getValues();
-      var sessionId = null;
-      var chatHistory = [];
-      var currentOrder = 1;
-      var sessionStatus = "";
-      var sessionCount = 0;
-      
-      // Encontra a ÚLTIMA sessão e conta quantas existem
-      for (var j = 1; j < sData.length; j++) {
-        if (sData[j][1].toString() === payload.rm.toString() && sData[j][2].toString() === payload.script_id.toString()) {
-          sessionCount++;
-          sessionId = sData[j][0];
-          currentOrder = parseInt(sData[j][3]);
-          chatHistory = JSON.parse(sData[j][4] || "[]");
-          sessionStatus = sData[j][5];
-        }
-      }
-      
-      // Busca informações do roteiro (título e limite de tentativas)
       var scriptSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Scripts");
       var scriptData = scriptSheet.getDataRange().getValues();
-      var title = "Roteiro";
-      var attemptsLimit = 3;
       for (var k = 1; k < scriptData.length; k++) {
         if (scriptData[k][0].toString() === payload.script_id.toString()) {
           title = scriptData[k][1];
@@ -478,75 +433,164 @@ function doPost(e) {
           break;
         }
       }
-      
-      // Se não tem sessão, OU se a última está concluída (ou via force_restart) e ele ainda tem tentativas do script sobrando:
-      if (!sessionId || ((sessionStatus === "completed" || payload.force_restart) && sessionCount < attemptsLimit)) {
-        sessionId = new Date().getTime().toString() + "_" + sessionCount;
+
+      if (isTest) {
+        studentName = "Professor (Teste)";
+        sessionId = "TEST_" + new Date().getTime();
         chatHistory = [{
           role: "assistant", 
           content: "Olá, " + studentName + "! Vamos começar o roteiro **" + title + "**. O que você sabe sobre o primeiro assunto?"
         }];
-        sessionSheet.appendRow([sessionId, payload.rm, payload.script_id, 1, JSON.stringify(chatHistory), "active", ""]);
+        
+        var testSessionData = {
+          scriptId: payload.script_id,
+          currentOrder: 1,
+          chatHistory: chatHistory,
+          status: "active",
+          finalGrade: "",
+          attempts: {},
+          grades: {}
+        };
+        CacheService.getScriptCache().put(sessionId, JSON.stringify(testSessionData), 21600); // 6 hours
+        
+        result.session_id = sessionId;
+        result.name = studentName;
+      } else {
+        var studentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Students");
+        var data = studentSheet.getDataRange().getValues();
+        var foundName = null;
+        var inputName = payload.name || "";
+        var inputRM = payload.rm.toString().trim();
+        
+        for (var i = 1; i < data.length; i++) {
+          var dbRM = data[i][0].toString().trim();
+          var dbNameOriginal = data[i][1].toString();
+          var dbScriptId = data[i][2] ? data[i][2].toString() : "";
+          // Remove acentos e converte para maiúsculo para comparar
+          var dbNameNormalized = dbNameOriginal.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+          
+          if (dbRM === inputRM && dbNameNormalized === inputName && (dbScriptId === payload.script_id.toString() || dbScriptId === "")) {
+            foundName = dbNameOriginal; // Retorna o nome original com formatação correta
+            break;
+          }
+        }
+        
+        if (!foundName) {
+          throw new Error("Credenciais inválidas ou você não está cadastrado neste roteiro. Verifique seu Nome Completo e RM.");
+        }
+        
+        studentName = foundName;
+        
+        // Init or Get session
+        var sessionSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sessions");
+        var sData = sessionSheet.getDataRange().getValues();
+        sessionId = null;
+        chatHistory = [];
+        var currentOrder = 1;
+        var sessionStatus = "";
+        var sessionCount = 0;
+        
+        // Encontra a ÚLTIMA sessão e conta quantas existem
+        for (var j = 1; j < sData.length; j++) {
+          if (sData[j][1].toString() === payload.rm.toString() && sData[j][2].toString() === payload.script_id.toString()) {
+            sessionCount++;
+            sessionId = sData[j][0];
+            currentOrder = parseInt(sData[j][3]);
+            chatHistory = JSON.parse(sData[j][4] || "[]");
+            sessionStatus = sData[j][5];
+          }
+        }
+        
+        // Se não tem sessão, OU se a última está concluída (ou via force_restart) e ele ainda tem tentativas do script sobrando:
+        if (!sessionId || ((sessionStatus === "completed" || payload.force_restart) && sessionCount < attemptsLimit)) {
+          sessionId = new Date().getTime().toString() + "_" + sessionCount;
+          chatHistory = [{
+            role: "assistant", 
+            content: "Olá, " + studentName + "! Vamos começar o roteiro **" + title + "**. O que você sabe sobre o primeiro assunto?"
+          }];
+          sessionSheet.appendRow([sessionId, payload.rm, payload.script_id, 1, JSON.stringify(chatHistory), "active", ""]);
+        }
+        
+        result.session_id = sessionId;
+        result.name = studentName;
       }
-      
-      result.session_id = sessionId;
-      result.name = studentName;
     }
     else if (action === "student_get_chat") {
-      var sessionSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sessions");
-      var sData = sessionSheet.getDataRange().getValues();
-      for (var j = 1; j < sData.length; j++) {
-        if (sData[j][0].toString() === payload.session_id.toString()) {
-          result.chat_history = JSON.parse(sData[j][4] || "[]");
-          result.status = sData[j][5];
-          result.final_grade = sData[j][6];
-          
-          var scriptId = sData[j][2];
-          result.current_step = parseInt(sData[j][3]);
-          
-          var scriptSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Scripts");
-          var scriptData = scriptSheet.getDataRange().getValues();
-          var scriptHeaders = scriptData[0] || [];
-          var instIdx = scriptHeaders.indexOf("initial_instructions") > -1 ? scriptHeaders.indexOf("initial_instructions") : 4;
-          
-          for (var k = 1; k < scriptData.length; k++) {
-            if (scriptData[k][0].toString() === scriptId.toString()) {
-               result.initial_instructions = scriptData[k][instIdx] || "";
-               break;
-            }
+      var scriptId = null;
+      if (payload.session_id.toString().startsWith("TEST_")) {
+        var cached = CacheService.getScriptCache().get(payload.session_id.toString());
+        if (!cached) throw new Error("Sessão de teste expirada ou não encontrada.");
+        var testData = JSON.parse(cached);
+        result.chat_history = testData.chatHistory;
+        result.status = testData.status;
+        result.final_grade = testData.finalGrade;
+        result.current_step = testData.currentOrder;
+        scriptId = testData.scriptId;
+      } else {
+        var sessionSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sessions");
+        var sData = sessionSheet.getDataRange().getValues();
+        for (var j = 1; j < sData.length; j++) {
+          if (sData[j][0].toString() === payload.session_id.toString()) {
+            result.chat_history = JSON.parse(sData[j][4] || "[]");
+            result.status = sData[j][5];
+            result.final_grade = sData[j][6];
+            
+            scriptId = sData[j][2];
+            result.current_step = parseInt(sData[j][3]);
+            break;
           }
-          
-          var itemSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("ScriptItems");
-          var itData = itemSheet.getDataRange().getValues();
-          var totalSteps = 0;
-          for (var l = 1; l < itData.length; l++) {
-            if (itData[l][1].toString() === scriptId.toString()) totalSteps++;
-          }
-          result.total_steps = totalSteps;
-          break;
         }
       }
+      
+      if (!scriptId) throw new Error("Sessão não encontrada");
+      
+      var scriptSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Scripts");
+      var scriptData = scriptSheet.getDataRange().getValues();
+      var scriptHeaders = scriptData[0] || [];
+      var instIdx = scriptHeaders.indexOf("initial_instructions") > -1 ? scriptHeaders.indexOf("initial_instructions") : 4;
+      
+      for (var k = 1; k < scriptData.length; k++) {
+        if (scriptData[k][0].toString() === scriptId.toString()) {
+           result.initial_instructions = scriptData[k][instIdx] || "";
+           break;
+        }
+      }
+      
+      var itemSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("ScriptItems");
+      var itData = itemSheet.getDataRange().getValues();
+      var totalSteps = 0;
+      for (var l = 1; l < itData.length; l++) {
+        if (itData[l][1].toString() === scriptId.toString()) totalSteps++;
+      }
+      result.total_steps = totalSteps;
     }
     else if (action === "student_send_message") {
       var config = getConfig();
+      var isTest = payload.session_id.toString().startsWith("TEST_");
+      var scriptId, currentOrder, chatHistory, testData, rowIndex = -1, sessionRecord = null;
       var sessionSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sessions");
-      var sData = sessionSheet.getDataRange().getValues();
-      var rowIndex = -1;
-      var sessionRecord = null;
       
-      for (var j = 1; j < sData.length; j++) {
-        if (sData[j][0].toString() === payload.session_id.toString()) {
-          rowIndex = j + 1;
-          sessionRecord = sData[j];
-          break;
+      if (isTest) {
+        var cached = CacheService.getScriptCache().get(payload.session_id.toString());
+        if (!cached) throw new Error("Sessão de teste expirada ou não encontrada.");
+        testData = JSON.parse(cached);
+        scriptId = testData.scriptId;
+        currentOrder = testData.currentOrder;
+        chatHistory = testData.chatHistory;
+      } else {
+        var sData = sessionSheet.getDataRange().getValues();
+        for (var j = 1; j < sData.length; j++) {
+          if (sData[j][0].toString() === payload.session_id.toString()) {
+            rowIndex = j + 1;
+            sessionRecord = sData[j];
+            break;
+          }
         }
+        if (rowIndex === -1) throw new Error("Sessão não encontrada");
+        scriptId = sessionRecord[2];
+        currentOrder = parseInt(sessionRecord[3]);
+        chatHistory = JSON.parse(sessionRecord[4] || "[]");
       }
-      
-      if (rowIndex === -1) throw new Error("Sessão não encontrada");
-      
-      var scriptId = sessionRecord[2];
-      var currentOrder = parseInt(sessionRecord[3]);
-      var chatHistory = JSON.parse(sessionRecord[4] || "[]");
       
       // Append user message
       chatHistory.push({role: "user", content: payload.message});
@@ -604,21 +648,24 @@ function doPost(e) {
       // Call LLM
       var llmResp = callGeminiAPI(systemPrompt, chatHistory, config.llm_api_key);
       
-      // Log interaction
-      var logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Logs");
-      if(!logSheet) {
-          setupSheets();
-          logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Logs");
+      var logSheet = null;
+      if (!isTest) {
+        // Log interaction
+        logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Logs");
+        if(!logSheet) {
+            setupSheets();
+            logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Logs");
+        }
+        logSheet.appendRow([
+           payload.session_id.toString(),
+           new Date().toISOString(),
+           currentOrder,
+           llmResp.status_item || "",
+           llmResp.nota_etapa || "",
+           llmResp.justificativa_nota || "",
+           llmResp.analise_raciocinio_aluno || ""
+        ]);
       }
-      logSheet.appendRow([
-         payload.session_id.toString(),
-         new Date().toISOString(),
-         currentOrder,
-         llmResp.status_item || "",
-         llmResp.nota_etapa || "",
-         llmResp.justificativa_nota || "",
-         llmResp.analise_raciocinio_aluno || ""
-      ]);
 
       // Check attempts limit
       var scriptSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Scripts");
@@ -631,11 +678,17 @@ function doPost(e) {
         }
       }
 
-      var logData = logSheet.getDataRange().getValues();
       var attemptsCount = 0;
-      for (var m = 1; m < logData.length; m++) {
-        if (logData[m][0].toString() === payload.session_id.toString() && parseInt(logData[m][2]) === currentOrder) {
-            attemptsCount++;
+      if (isTest) {
+        if (!testData.attempts) testData.attempts = {};
+        testData.attempts[currentOrder] = (testData.attempts[currentOrder] || 0) + 1;
+        attemptsCount = testData.attempts[currentOrder];
+      } else {
+        var logData = logSheet.getDataRange().getValues();
+        for (var m = 1; m < logData.length; m++) {
+          if (logData[m][0].toString() === payload.session_id.toString() && parseInt(logData[m][2]) === currentOrder) {
+              attemptsCount++;
+          }
         }
       }
       
@@ -647,14 +700,14 @@ function doPost(e) {
       // Append assistant message
       chatHistory.push({role: "assistant", content: llmResp.resposta_chat});
       
-      // Update session
-      // Update session
+      var itemSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("ScriptItems");
+      var itData = itemSheet.getDataRange().getValues();
+      var totalSteps = 0;
+      for (var l = 1; l < itData.length; l++) {
+        if (itData[l][1].toString() === scriptId.toString()) totalSteps++;
+      }
+      
       if (llmResp.status_item === 'aprovado' || llmResp.status_item === 'falha_definitiva') {
-         // Salva a nota e justificativa (máx 240 char) desta etapa nas colunas da direita
-         var colNota = 8 + (currentOrder - 1) * 2;
-         var colJust = 9 + (currentOrder - 1) * 2;
-         var justTxt = (llmResp.justificativa_nota || "");
-         
          var numNota = parseFloat((llmResp.nota_etapa || "0").toString().replace(",", "."));
          if (!isNaN(numNota)) {
              if (numNota > 10) numNota = 10;
@@ -662,53 +715,69 @@ function doPost(e) {
              llmResp.nota_etapa = numNota.toString();
          }
          
-         sessionSheet.getRange(rowIndex, colNota).setValue(llmResp.nota_etapa || "");
-         sessionSheet.getRange(rowIndex, colJust).setValue(justTxt);
+         if (isTest) {
+             if (!testData.grades) testData.grades = {};
+             testData.grades[currentOrder] = parseFloat(llmResp.nota_etapa);
+             currentOrder++;
+             if (!nextItemDesc) testData.status = "completed";
+             
+             var sum = 0, count = 0;
+             for (var key in testData.grades) {
+                 sum += testData.grades[key];
+                 count++;
+             }
+             testData.finalGrade = count > 0 ? (sum / count).toFixed(1) : "0";
+         } else {
+             var colNota = 8 + (currentOrder - 1) * 2;
+             var colJust = 9 + (currentOrder - 1) * 2;
+             var justTxt = (llmResp.justificativa_nota || "");
+             
+             sessionSheet.getRange(rowIndex, colNota).setValue(llmResp.nota_etapa || "");
+             sessionSheet.getRange(rowIndex, colJust).setValue(justTxt);
 
-         // Calcula a média das notas (pegando apenas a última tentativa de cada etapa)
-         var gradesByStep = {};
-         var finalLogs = logSheet.getDataRange().getValues();
-         for(var n=1; n<finalLogs.length; n++) {
-            if(finalLogs[n][0].toString() === payload.session_id.toString()) {
-                var nota = parseFloat(finalLogs[n][4].toString().replace(",", "."));
-                if (!isNaN(nota)) {
-                   if (nota > 10) nota = 10;
-                   if (nota < 0) nota = 0;
+             var gradesByStep = {};
+             var finalLogs = logSheet.getDataRange().getValues();
+             for(var n=1; n<finalLogs.length; n++) {
+                if(finalLogs[n][0].toString() === payload.session_id.toString()) {
+                    var nota = parseFloat(finalLogs[n][4].toString().replace(",", "."));
+                    if (!isNaN(nota)) {
+                       if (nota > 10) nota = 10;
+                       if (nota < 0) nota = 0;
+                    }
+                    var stepId = finalLogs[n][2].toString();
+                    if(!isNaN(nota)) {
+                       gradesByStep[stepId] = nota;
+                    }
                 }
-                var stepId = finalLogs[n][2].toString();
-                if(!isNaN(nota)) {
-                   gradesByStep[stepId] = nota;
-                }
-            }
-         }
-         var allGrades = [];
-         for(var key in gradesByStep) {
-             allGrades.push(gradesByStep[key]);
-         }
-         var finalGrade = 0;
-         if(allGrades.length > 0) {
-             var sum = allGrades.reduce(function(a, b) { return a + b; }, 0);
-             finalGrade = (sum / allGrades.length).toFixed(1);
-         }
-         
-         // Atualiza a Nota Total na coluna 7 continuamente
-         sessionSheet.getRange(rowIndex, 7).setValue(finalGrade);
-
-         currentOrder++;
-         if (!nextItemDesc) {
-            sessionSheet.getRange(rowIndex, 6).setValue("completed"); // Status completed
+             }
+             var allGrades = [];
+             for(var key in gradesByStep) {
+                 allGrades.push(gradesByStep[key]);
+             }
+             var finalGrade = 0;
+             if(allGrades.length > 0) {
+                 var sumGrade = allGrades.reduce(function(a, b) { return a + b; }, 0);
+                 finalGrade = (sumGrade / allGrades.length).toFixed(1);
+             }
+             
+             sessionSheet.getRange(rowIndex, 7).setValue(finalGrade);
+             currentOrder++;
+             if (!nextItemDesc) {
+                sessionSheet.getRange(rowIndex, 6).setValue("completed"); // Status completed
+             }
          }
       }
       
-      sessionSheet.getRange(rowIndex, 4).setValue(currentOrder);
-      sessionSheet.getRange(rowIndex, 5).setValue(JSON.stringify(chatHistory));
+      if (isTest) {
+          testData.currentOrder = currentOrder;
+          testData.chatHistory = chatHistory;
+          CacheService.getScriptCache().put(payload.session_id.toString(), JSON.stringify(testData), 21600);
+      } else {
+          sessionSheet.getRange(rowIndex, 4).setValue(currentOrder);
+          sessionSheet.getRange(rowIndex, 5).setValue(JSON.stringify(chatHistory));
+      }
       
       result.reply = llmResp;
-      
-      var totalSteps = 0;
-      for (var l = 1; l < itData.length; l++) {
-        if (itData[l][1].toString() === scriptId.toString()) totalSteps++;
-      }
       result.current_step = currentOrder;
       result.total_steps = totalSteps;
     }
