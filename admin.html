@@ -457,7 +457,8 @@
             try {
                 const data = await fetchGAS({ 
                     action: 'admin_add_students', 
-                    students: studentsToSave 
+                    students: studentsToSave,
+                    script_id: window.currentStudentsScriptId
                 });
                 
                 msg.className = "mt-3 text-sm text-green-400";
@@ -480,19 +481,21 @@
         
         async function deleteStudent(rm) {
             if (!confirm(`Deseja realmente excluir o aluno com RM ${rm}?`)) return;
+            
             try {
-                await fetchGAS({ action: 'admin_delete_student', rm: rm });
-                if (window.currentStudentsScriptId) loadStudents(window.currentStudentsScriptId);
+                await fetchGAS({ action: 'admin_delete_student', rm: rm, script_id: window.currentStudentsScriptId });
+                loadStudents(window.currentStudentsScriptId);
             } catch (err) {
                 alert(`Erro ao excluir: ${err.message}`);
             }
         }
         
         async function deleteAllStudents() {
-            if (!confirm(`Deseja realmente excluir TODOS os alunos do sistema? Esta ação não pode ser desfeita.`)) return;
+            if (!confirm(`Deseja realmente excluir TODOS os alunos deste roteiro do sistema? Esta ação não pode ser desfeita.`)) return;
+            
             try {
-                await fetchGAS({ action: 'admin_delete_all_students' });
-                if (window.currentStudentsScriptId) loadStudents(window.currentStudentsScriptId);
+                await fetchGAS({ action: 'admin_delete_all_students', script_id: window.currentStudentsScriptId });
+                loadStudents(window.currentStudentsScriptId);
             } catch (err) {
                 alert(`Erro ao excluir todos: ${err.message}`);
             }

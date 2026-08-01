@@ -15,7 +15,7 @@ function setupSheets() {
       } else if (name === "ScriptItems") {
         s.appendRow(["id", "script_id", "sequence_order", "description"]);
       } else if (name === "Students") {
-        s.appendRow(["rm", "name"]);
+        s.appendRow(["rm", "name", "script_id"]);
       } else if (name === "Sessions") {
         s.appendRow(["id", "student_rm", "script_id", "current_item_order", "chat_history", "status", "final_grade", "Nota Etapa 1", "Just. Etapa 1", "Nota Etapa 2", "Just. Etapa 2", "Nota Etapa 3", "Just. Etapa 3", "Nota Etapa 4", "Just. Etapa 4", "Nota Etapa 5", "Just. Etapa 5", "Nota Etapa 6", "Just. Etapa 6", "Nota Etapa 7", "Just. Etapa 7", "Nota Etapa 8", "Just. Etapa 8", "Nota Etapa 9", "Just. Etapa 9", "Nota Etapa 10", "Just. Etapa 10"]);
       } else if (name === "Logs") {
@@ -261,21 +261,36 @@ function doPost(e) {
     else if (action === "admin_get_students") {
       var studentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Students");
       var stData = studentSheet ? studentSheet.getDataRange().getValues() : [];
-      var allStudents = {};
-      for (var k = 1; k < stData.length; k++) {
-        allStudents[stData[k][0].toString()] = {
-          rm: stData[k][0],
-          name: stData[k][1],
-          session_id: null,
-          current_item_order: 0,
-          status: 'not_started',
-          attempts: 0,
-          final_grade: ''
-        };
+      
+      var sessionSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sessions");
+      var data = sessionSheet ? sessionSheet.getDataRange().getValues() : [];
+      var activeRMs = new Set();
+      for (var i = 1; i < data.length; i++) {
+        if (data[i][2].toString() === payload.script_id.toString()) {
+           activeRMs.add(data[i][1].toString());
+        }
       }
 
-      var sessionSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sessions");
-      var data = sessionSheet.getDataRange().getValues();
+      var allStudents = {};
+      for (var k = 1; k < stData.length; k++) {
+        var sId = stData[k][2] ? stData[k][2].toString() : "";
+        var rm = stData[k][0].toString();
+        
+        if (sId === payload.script_id.toString() || (sId === "" && activeRMs.has(rm))) {
+            if (!allStudents[rm]) {
+                allStudents[rm] = {
+                  rm: rm,
+                  name: stData[k][1],
+                  session_id: null,
+                  current_item_order: 0,
+                  status: 'not_started',
+                  attempts: 0,
+                  final_grade: ''
+                };
+            }
+        }
+      }
+
       for (var i = 1; i < data.length; i++) {
         if (data[i][2].toString() === payload.script_id.toString()) {
           var rm = data[i][1].toString();
@@ -305,19 +320,26 @@ function doPost(e) {
       var studentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Students");
       if (!studentSheet) {
         studentSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet("Students");
-        studentSheet.appendRow(["rm", "name"]);
+        studentSheet.appendRow(["rm", "name", "script_id"]);
+      } else {
+        var header = studentSheet.getRange(1, 1, 1, studentSheet.getLastColumn()).getValues()[0];
+        if (header.length < 3 || header[2] !== "script_id") {
+           studentSheet.getRange(1, 3).setValue("script_id");
+        }
       }
       var existingData = studentSheet.getDataRange().getValues();
-      var existingRMs = new Set();
+      var existingSet = new Set();
       for (var i = 1; i < existingData.length; i++) {
-        existingRMs.add(existingData[i][0].toString());
+        var sId = existingData[i][2] ? existingData[i][2].toString() : "";
+        existingSet.add(existingData[i][0].toString() + "_" + sId);
       }
       
       var count = 0;
       payload.students.forEach(function(s) {
-        if (s.rm && s.name && !existingRMs.has(s.rm.toString())) {
-          studentSheet.appendRow([s.rm, s.name]);
-          existingRMs.add(s.rm.toString());
+        var key = s.rm.toString() + "_" + payload.script_id.toString();
+        if (s.rm && s.name && !existingSet.has(key)) {
+          studentSheet.appendRow([s.rm, s.name, payload.script_id]);
+          existingSet.add(key);
           count++;
         }
       });
@@ -332,7 +354,7 @@ function doPost(e) {
       if (sessionSheet) {
          var sData = sessionSheet.getDataRange().getValues();
          for (var j = sData.length - 1; j >= 1; j--) {
-            if (sData[j][1].toString() === payload.rm.toString()) {
+            if (sData[j][1].toString() === payload.rm.toString() && sData[j][2].toString() === payload.script_id.toString()) {
                sessionsToDelete.push(sData[j][0].toString());
                sessionSheet.deleteRow(j + 1);
             }
@@ -351,32 +373,49 @@ function doPost(e) {
       if (studentSheet) {
          var data = studentSheet.getDataRange().getValues();
          for (var i = data.length - 1; i >= 1; i--) {
-            if (data[i][0].toString() === payload.rm.toString()) {
+            var sId = data[i][2] ? data[i][2].toString() : "";
+            if (data[i][0].toString() === payload.rm.toString() && (sId === payload.script_id.toString() || sId === "")) {
                studentSheet.deleteRow(i + 1);
-               break;
             }
          }
       }
-      result.message = "Aluno, sessões e logs removidos";
+      result.message = "Aluno, sessões e logs removidos deste roteiro";
     }
     else if (action === "admin_delete_all_students") {
       var studentSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Students");
       var sessionSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sessions");
       var logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Logs");
+      var sessionsToDelete = [];
+      
+      if (sessionSheet) {
+         var sData = sessionSheet.getDataRange().getValues();
+         for (var j = sData.length - 1; j >= 1; j--) {
+            if (sData[j][2].toString() === payload.script_id.toString()) {
+               sessionsToDelete.push(sData[j][0].toString());
+               sessionSheet.deleteRow(j + 1);
+            }
+         }
+      }
+      
+      if (logSheet && sessionsToDelete.length > 0) {
+         var lData = logSheet.getDataRange().getValues();
+         for (var k = lData.length - 1; k >= 1; k--) {
+            if (sessionsToDelete.indexOf(lData[k][0].toString()) !== -1) {
+               logSheet.deleteRow(k + 1);
+            }
+         }
+      }
       
       if (studentSheet) {
-         var lastRow = studentSheet.getLastRow();
-         if (lastRow > 1) studentSheet.deleteRows(2, lastRow - 1);
+         var data = studentSheet.getDataRange().getValues();
+         for (var i = data.length - 1; i >= 1; i--) {
+            var sId = data[i][2] ? data[i][2].toString() : "";
+            if (sId === payload.script_id.toString()) {
+               studentSheet.deleteRow(i + 1);
+            }
+         }
       }
-      if (sessionSheet) {
-         var lastRowS = sessionSheet.getLastRow();
-         if (lastRowS > 1) sessionSheet.deleteRows(2, lastRowS - 1);
-      }
-      if (logSheet) {
-         var lastRowL = logSheet.getLastRow();
-         if (lastRowL > 1) logSheet.deleteRows(2, lastRowL - 1);
-      }
-      result.message = "Todos os alunos, sessões e logs foram removidos";
+      result.message = "Todos os alunos, sessões e logs deste roteiro foram removidos";
     }
     
     // --- STUDENT ACTIONS ---
@@ -391,17 +430,18 @@ function doPost(e) {
       for (var i = 1; i < data.length; i++) {
         var dbRM = data[i][0].toString().trim();
         var dbNameOriginal = data[i][1].toString();
+        var dbScriptId = data[i][2] ? data[i][2].toString() : "";
         // Remove acentos e converte para maiúsculo para comparar
         var dbNameNormalized = dbNameOriginal.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
         
-        if (dbRM === inputRM && dbNameNormalized === inputName) {
+        if (dbRM === inputRM && dbNameNormalized === inputName && (dbScriptId === payload.script_id.toString() || dbScriptId === "")) {
           foundName = dbNameOriginal; // Retorna o nome original com formatação correta
           break;
         }
       }
       
       if (!foundName) {
-        throw new Error("Credenciais inválidas. Verifique seu Nome Completo e RM.");
+        throw new Error("Credenciais inválidas ou você não está cadastrado neste roteiro. Verifique seu Nome Completo e RM.");
       }
       
       var studentName = foundName;
