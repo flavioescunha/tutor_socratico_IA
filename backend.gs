@@ -772,9 +772,13 @@ function doPost(e) {
           testData.currentOrder = currentOrder;
           testData.chatHistory = chatHistory;
           CacheService.getScriptCache().put(payload.session_id.toString(), JSON.stringify(testData), 21600);
+          if (testData.status === "completed") result.final_grade = testData.finalGrade;
       } else {
           sessionSheet.getRange(rowIndex, 4).setValue(currentOrder);
           sessionSheet.getRange(rowIndex, 5).setValue(JSON.stringify(chatHistory));
+          if (!nextItemDesc && (llmResp.status_item === 'aprovado' || llmResp.status_item === 'falha_definitiva')) {
+             result.final_grade = finalGrade;
+          }
       }
       
       result.reply = llmResp;

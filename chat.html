@@ -150,6 +150,7 @@
         <div id="completion-banner" class="hidden p-4 bg-green-500/20 border-t border-green-500/30 text-center">
             <h3 class="text-green-400 font-semibold mb-1"><i class="fa-solid fa-check-circle mr-2"></i>Atividade Concluída!</h3>
             <p class="text-sm text-green-200/70">Você finalizou todos os objetivos deste roteiro. Pode fechar esta aba.</p>
+            <p id="final-grade-display" class="mt-2 text-lg font-bold text-white hidden">Desempenho Final: <span id="final-grade-value" class="text-green-400"></span> / 10</p>
         </div>
 
         <div id="input-area" class="p-4 sm:p-6 bg-gradient-to-t from-dark-900 via-dark-900 to-transparent pt-10">
@@ -311,6 +312,10 @@
                 if (data.status === 'completed') {
                     inputArea.classList.add('hidden');
                     completionBanner.classList.remove('hidden');
+                    if (data.final_grade) {
+                        document.getElementById('final-grade-display').classList.remove('hidden');
+                        document.getElementById('final-grade-value').innerText = data.final_grade;
+                    }
                 }
                 
                 if (data.current_step && data.total_steps) {
@@ -355,6 +360,10 @@
                     if(data.current_step > data.total_steps) {
                         inputArea.classList.add('hidden');
                         completionBanner.classList.remove('hidden');
+                        if (data.final_grade) {
+                            document.getElementById('final-grade-display').classList.remove('hidden');
+                            document.getElementById('final-grade-value').innerText = data.final_grade;
+                        }
                     }
                 }
                 
