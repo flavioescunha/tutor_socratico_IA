@@ -524,6 +524,7 @@ function doPost(e) {
         result.chat_history = testData.chatHistory;
         result.status = testData.status;
         result.final_grade = testData.finalGrade;
+        result.step_performances = testData.step_performances || [];
         result.current_step = testData.currentOrder;
         scriptId = testData.scriptId;
       } else {
@@ -534,6 +535,17 @@ function doPost(e) {
             result.chat_history = JSON.parse(sData[j][4] || "[]");
             result.status = sData[j][5];
             result.final_grade = sData[j][6];
+            
+            result.step_performances = [];
+            for (var col = 7; col < sData[j].length; col += 2) {
+               if (sData[j][col] !== "" && sData[j][col] !== undefined) {
+                  result.step_performances.push({
+                     step: (col - 7) / 2 + 1,
+                     grade: sData[j][col],
+                     justification: sData[j][col + 1] || ""
+                  });
+               }
+            }
             
             scriptId = sData[j][2];
             result.current_step = parseInt(sData[j][3]);
@@ -717,7 +729,15 @@ function doPost(e) {
          
          if (isTest) {
              if (!testData.grades) testData.grades = {};
+             if (!testData.step_performances) testData.step_performances = [];
+             
              testData.grades[currentOrder] = parseFloat(llmResp.nota_etapa);
+             testData.step_performances.push({
+                 step: currentOrder,
+                 grade: llmResp.nota_etapa,
+                 justification: llmResp.justificativa_nota || ""
+             });
+             
              currentOrder++;
              if (!nextItemDesc) testData.status = "completed";
              
@@ -772,12 +792,26 @@ function doPost(e) {
           testData.currentOrder = currentOrder;
           testData.chatHistory = chatHistory;
           CacheService.getScriptCache().put(payload.session_id.toString(), JSON.stringify(testData), 21600);
-          if (testData.status === "completed") result.final_grade = testData.finalGrade;
+          if (testData.status === "completed") {
+             result.final_grade = testData.finalGrade;
+             result.step_performances = testData.step_performances;
+          }
       } else {
           sessionSheet.getRange(rowIndex, 4).setValue(currentOrder);
           sessionSheet.getRange(rowIndex, 5).setValue(JSON.stringify(chatHistory));
           if (!nextItemDesc && (llmResp.status_item === 'aprovado' || llmResp.status_item === 'falha_definitiva')) {
              result.final_grade = finalGrade;
+             result.step_performances = [];
+             var updatedRow = sessionSheet.getRange(rowIndex, 1, 1, sessionSheet.getLastColumn()).getValues()[0];
+             for (var col = 7; col < updatedRow.length; col += 2) {
+                if (updatedRow[col] !== "" && updatedRow[col] !== undefined) {
+                   result.step_performances.push({
+                      step: (col - 7) / 2 + 1,
+                      grade: updatedRow[col],
+                      justification: updatedRow[col + 1] || ""
+                   });
+                }
+             }
           }
       }
       
