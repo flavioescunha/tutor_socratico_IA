@@ -267,29 +267,29 @@
             chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
         }
 
-        function logout() {
-            sessionStorage.clear();
-            window.location.href = "https://script.google.com/macros/s/AKfycby12ioVbLmPOxgzLjdgLgrHLEMHrsS7NLQyOzB9NT-b6wONyJHRPpL6opiqPrvjti9j1Q/exec";
-        }
-
         async function restartAttempt() {
             if (!confirm("Deseja iniciar uma nova tentativa do zero? Todo o seu progresso atual nesta tentativa será mantido nos registros do professor, e você começará uma nova tentativa limpa.")) return;
             
             try {
                 const res = await fetchGAS({
                     action: 'student_login',
-                    name: currentName,
-                    rm: currentRm,
-                    script_id: currentScriptId,
+                    name: sessionData.name,
+                    rm: sessionData.rm,
+                    script_id: sessionData.script_id,
                     force_restart: true
                 });
                 
                 if (res.error) {
                     alert(res.error);
                 } else {
-                    sessionStorage.setItem("session_id", res.session_id);
+                    sessionData.session_id = res.session_id;
+                    localStorage.setItem('student_session', JSON.stringify(sessionData));
                     window.location.reload();
                 }
+            } catch (err) {
+                alert("Erro ao reiniciar: " + err.message);
+            }
+        }
         function renderStepPerformances(steps) {
             if (!steps || steps.length === 0) return;
             const container = document.getElementById('step-performances-container');
