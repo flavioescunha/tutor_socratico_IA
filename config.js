@@ -21,7 +21,7 @@ async function fetchGAS(payload) {
     });
     
     if (!response.ok) {
-        throw new Error("Erro de rede: " + response.statusText);
+        throw new Error(`Erro de rede (Status: ${response.status}, Tipo: ${response.type}): ${response.statusText}`);
     }
     
     const json = await response.json();

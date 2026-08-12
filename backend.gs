@@ -746,13 +746,20 @@ function doPost(e) {
                  sum += testData.grades[key];
                  count++;
              }
-             testData.finalGrade = count > 0 ? (sum / count).toFixed(1) : "0";
+             testData.finalGrade = count > 0 ? Number((sum / count).toFixed(1)) : 0;
          } else {
              var colNota = 8 + (currentOrder - 1) * 2;
              var colJust = 9 + (currentOrder - 1) * 2;
              var justTxt = (llmResp.justificativa_nota || "");
              
-             sessionSheet.getRange(rowIndex, colNota).setValue(llmResp.nota_etapa || "");
+             var notaVal = llmResp.nota_etapa;
+             if (notaVal !== undefined && notaVal !== "") {
+                 var parsedNota = parseFloat(notaVal.toString().replace(",", "."));
+                 if (!isNaN(parsedNota)) {
+                     notaVal = Number(parsedNota.toFixed(1));
+                 }
+             }
+             sessionSheet.getRange(rowIndex, colNota).setValue(notaVal || "");
              sessionSheet.getRange(rowIndex, colJust).setValue(justTxt);
 
              var gradesByStep = {};
@@ -777,7 +784,7 @@ function doPost(e) {
              var finalGrade = 0;
              if(allGrades.length > 0) {
                  var sumGrade = allGrades.reduce(function(a, b) { return a + b; }, 0);
-                 finalGrade = (sumGrade / allGrades.length).toFixed(1);
+                 finalGrade = Number((sumGrade / allGrades.length).toFixed(1));
              }
              
              sessionSheet.getRange(rowIndex, 7).setValue(finalGrade);
