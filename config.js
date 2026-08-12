@@ -6,7 +6,10 @@ const api = {
         async get(collection, id = null) {
             const url = id ? `${API_BASE_URL}/api/db/${collection}/${id}` : `${API_BASE_URL}/api/db/${collection}`;
             const response = await fetch(url, { headers: { "ngrok-skip-browser-warning": "true" } });
-            if (!response.ok) throw new Error(`Erro ao buscar ${collection}: ${response.statusText}`);
+            if (!response.ok) {
+                if (response.status === 404) throw new Error("404 Not Found");
+                throw new Error(`Erro ao buscar ${collection}: ${response.statusText}`);
+            }
             return await response.json();
         },
         async post(collection, data, id = null) {

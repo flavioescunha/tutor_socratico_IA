@@ -259,7 +259,7 @@
                     }
                     throw new Error('Credenciais invlidas');
                 } catch (e) {
-                    if (e.message.includes('encontrado')) {
+                    if (e.message.includes('404')) {
                         return { needs_setup: true }; // no settings means needs setup
                     }
                     throw e;
