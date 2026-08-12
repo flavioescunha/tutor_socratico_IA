@@ -13,6 +13,6 @@ npx clasp push
 
 Write-Host "3. Atualizando a implantação publicada (Deployment) no Google Apps Script..."
 # O ID abaixo é o da implantação principal que está ativa para os alunos.
-npx clasp deploy -i AKfycbyKGeTMWftx6I0BSwzvEV_zBibSPA3Ep42y18FRJBvT2gz0iHK9dY0AANf3v_OT1d8z -d $CommitMessage
+npx clasp deploy -i AKfycby0BTBAuOOUouaV_Hdo3e47T_rSPXhUSGoeRwiRjA4JJ81KpRGnk28RJ6nSUhshxtWVcw -d $CommitMessage
 
 Write-Host "Deploy concluído com sucesso!"

@@ -155,6 +155,13 @@
                 <h4 class="text-md font-semibold text-white mb-2 border-b border-slate-700 pb-1">Desempenho por Etapa:</h4>
                 <div id="step-performances-list"></div>
             </div>
+            
+            <div id="restart-attempt-container" class="mt-6 hidden">
+                <button onclick="restartAttempt()" class="bg-primary-600 hover:bg-primary-500 text-white font-bold py-2 px-6 rounded-xl transition-colors border border-primary-500 shadow-lg">
+                    <i class="fa-solid fa-rotate-right mr-2"></i>Tentar Novamente
+                </button>
+                <p id="attempts-remaining-text" class="text-xs text-green-200/50 mt-2"></p>
+            </div>
         </div>
 
         <div id="input-area" class="p-4 sm:p-6 bg-gradient-to-t from-dark-900 via-dark-900 to-transparent pt-10">
@@ -317,9 +324,9 @@
                     session_id: sessionData.session_id
                 });
                 
-                if (data.initial_instructions && data.initial_instructions.trim() !== '') {
+                if (data.script && data.script.initial_instructions && data.script.initial_instructions.trim() !== '') {
                     const overlay = document.getElementById('initial-instructions-overlay');
-                    document.getElementById('initial-instructions-content').innerText = data.initial_instructions;
+                    document.getElementById('initial-instructions-content').innerText = data.script.initial_instructions;
                     overlay.classList.remove('hidden');
                 }
                 
@@ -338,10 +345,18 @@
                     if (data.step_performances) {
                         renderStepPerformances(data.step_performances);
                     }
+                    
+                    const attemptsLeft = (data.script && data.script.attempts_limit) ? (data.script.attempts_limit - data.attempt_count) : 0;
+                    if (attemptsLeft > 0) {
+                        document.getElementById('attempts-remaining-text').innerText = `Você ainda tem ${attemptsLeft} tentativa(s) restante(s).`;
+                        document.getElementById('restart-attempt-container').classList.remove('hidden');
+                    } else {
+                        document.getElementById('restart-attempt-container').classList.add('hidden');
+                    }
                 }
                 
-                if (data.current_step && data.total_steps) {
-                    updateProgress(data.current_step, data.total_steps, data.status);
+                if (data.current_item_order && data.total_item_count) {
+                    updateProgress(data.current_item_order, data.total_item_count, data.status);
                 }
             } catch (err) {
                 alert("Erro ao carregar chat: " + err.message);
@@ -370,26 +385,25 @@
                 });
                 
                 typingIndicator.classList.add('hidden');
-                appendMessage('assistant', data.reply.resposta_chat);
+                appendMessage('assistant', data.reply);
                 
-                if (data.current_step && data.total_steps) {
-                    let st = (data.reply.status_item === 'aprovado' || data.reply.status_item === 'falha_definitiva') && data.current_step > data.total_steps ? 'completed' : 'active';
-                    updateProgress(data.current_step, data.total_steps, st);
+                if (data.current_item_order !== undefined && data.total_item_count !== undefined) {
+                    updateProgress(data.current_item_order, data.total_item_count, data.status);
                 }
                 
-                if (data.reply.status_item === 'aprovado' || data.reply.status_item === 'falha_definitiva') {
-                    // Check if it's the end of the script
-                    if(data.current_step > data.total_steps) {
-                        inputArea.classList.add('hidden');
-                        completionBanner.classList.remove('hidden');
-                        if (data.final_grade) {
-                            document.getElementById('final-grade-display').classList.remove('hidden');
-                            document.getElementById('final-grade-value').innerText = data.final_grade;
-                        }
-                        if (data.step_performances) {
-                            renderStepPerformances(data.step_performances);
-                        }
+                if (data.status === 'completed') {
+                    inputArea.classList.add('hidden');
+                    completionBanner.classList.remove('hidden');
+                    if (data.final_grade) {
+                        document.getElementById('final-grade-display').classList.remove('hidden');
+                        document.getElementById('final-grade-value').innerText = data.final_grade;
                     }
+                    if (data.step_performances) {
+                        renderStepPerformances(data.step_performances);
+                    }
+                    
+                    // Envia os resultados para o novo servidor backend Python
+                    await sendFinalReportToBackend(data);
                 }
                 
             } catch (err) {
@@ -402,6 +416,41 @@
             }
         });
 
+        async function sendFinalReportToBackend(data) {
+            const respostasObj = {};
+            if (data.step_performances) {
+                data.step_performances.forEach(step => {
+                    respostasObj[`Etapa ${step.step}`] = step.justification;
+                });
+            }
+
+            const payload = {
+                aluno: sessionData.name || "Aluno Desconhecido",
+                turma: sessionData.script_id || "Turma Desconhecida",
+                acertos: data.final_grade ? Math.round(Number(data.final_grade)) : 0,
+                respostas: respostasObj
+            };
+
+            try {
+                const response = await fetch("https://salaries-adapters-alliance-cyber.trycloudflare.com/api/enviar-relatorio", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    alert("Sucesso: Os resultados da sua atividade foram salvos no servidor!");
+                } else {
+                    throw new Error(`Erro HTTP: ${response.status}`);
+                }
+            } catch (error) {
+                console.error("Erro ao enviar relatório:", error);
+                alert("Atenção: O servidor da escola parece estar offline. Por favor, avise o seu professor que você terminou a atividade.");
+            }
+        }
+
         function logout() {
             localStorage.removeItem('student_session');
             window.location.href = 'index.html';
@@ -409,6 +458,11 @@
 
         function startChatFromInstructions() {
             document.getElementById('initial-instructions-overlay').classList.add('hidden');
+            if (chatContainer.children.length === 0) {
+                const inputElement = document.getElementById('message-input');
+                inputElement.value = "Estou pronto, vamos começar!";
+                document.getElementById('message-form').dispatchEvent(new Event('submit'));
+            }
         }
 
         loadChat();

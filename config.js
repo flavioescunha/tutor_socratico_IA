@@ -1,5 +1,5 @@
-// Configure sua URL do Google Apps Script Web App AQUI
-const GAS_URL = "https://script.google.com/macros/s/AKfycbyKGeTMWftx6I0BSwzvEV_zBibSPA3Ep42y18FRJBvT2gz0iHK9dY0AANf3v_OT1d8z/exec";
+// URL do seu novo servidor Python
+const GAS_URL = "https://ruminatively-immediate-dawn.ngrok-free.dev/exec";
 
 async function fetchGAS(payload) {
     if (GAS_URL === "SUA_URL_DO_GOOGLE_APPS_SCRIPT_AQUI") {

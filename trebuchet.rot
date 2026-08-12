@@ -1,0 +1,29 @@
+{
+  "id": 1785270001137,
+  "title": "Trebuchet",
+  "subject": "Física",
+  "attempts_limit": 3,
+  "initial_instructions": "Pesquise o que é um Trebuchet, seus usos históricos, suas partes e funcionamento. Depois pesquise a relação dele com energia: quais tipos de energia estão envolvidas em seu funcionamento, eficiência energética. E finalmente relembre o lançamento oblíquo da primeira etapa (velocidade horizontal, vertical, altura máxima etc.).\nSe você já fez isso tudo, você está pronto para esta conversa!",
+  "items": [
+    {
+      "sequence_order": 1,
+      "description": "O aluno deve descrever o trebuchet em suas partes (contrapeso, lançadeira ou funda, braço ou alavanca, projétil), e seus usos históricos em invasão de castelos ou cidades medievais, por exemplo, arremessando pedras enormes para destruir muralhas, portões, torres etc.. "
+    },
+    {
+      "sequence_order": 2,
+      "description": "Associar energia potencial gravitacional ao erguimento do contrapeso numa extremidade da alavanca e a transformação de parte dessa energia em cinética no projétil.\n"
+    },
+    {
+      "sequence_order": 3,
+      "description": "Ao lançar o projétil, este descreve um arco de parábola característico do lançamento cinemático oblíquo. A velocidade inicial do projetil tem componentes horizontal e vertical. Na altura máxima a componente vertical é numa e resta apenas a velocidade horizontal. \n"
+    },
+    {
+      "sequence_order": 4,
+      "description": "Na altura máxima o projétil tem dois tipos de energia mecânica: potencial gravitacional e cinética. A soma é a energia mecânica total do projétil."
+    },
+    {
+      "sequence_order": 5,
+      "description": "A energia mecânica total do projétil será menor que a energia potencial gravitacional inicial do contrapeso, porque a eficiência energética do trebuchet não é 100%. "
+    }
+  ]
+}
