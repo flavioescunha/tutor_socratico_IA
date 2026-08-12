@@ -278,10 +278,10 @@
                 return { script: { id: res.id, ...res.data } };
             }
             if (payload.action === 'admin_save_script') {
-                const s = payload.script;
-                const id = s.id; // generic DB ignores id in body if we pass it, but wait! We pass id in query!
-                const dataToSave = { ...s };
-                if (dataToSave.id) delete dataToSave.id;
+                const id = payload.id;
+                const dataToSave = { ...payload };
+                delete dataToSave.action;
+                delete dataToSave.id;
                 const res = await api.db.post('scripts', dataToSave, id || undefined);
                 return { id: res.id };
             }
