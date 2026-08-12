@@ -5,7 +5,7 @@ const api = {
     db: {
         async get(collection, id = null) {
             const url = id ? `${API_BASE_URL}/api/db/${collection}/${id}` : `${API_BASE_URL}/api/db/${collection}`;
-            const response = await fetch(url);
+            const response = await fetch(url, { headers: { "ngrok-skip-browser-warning": "true" } });
             if (!response.ok) throw new Error(`Erro ao buscar ${collection}: ${response.statusText}`);
             return await response.json();
         },
@@ -13,7 +13,7 @@ const api = {
             const url = id ? `${API_BASE_URL}/api/db/${collection}?item_id=${id}` : `${API_BASE_URL}/api/db/${collection}`;
             const response = await fetch(url, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
                 body: JSON.stringify({ data })
             });
             if (!response.ok) {
@@ -30,7 +30,7 @@ const api = {
         },
         async delete(collection, id) {
             const url = `${API_BASE_URL}/api/db/${collection}/${id}`;
-            const response = await fetch(url, { method: "DELETE" });
+            const response = await fetch(url, { method: "DELETE", headers: { "ngrok-skip-browser-warning": "true" } });
             if (!response.ok) throw new Error(`Erro ao deletar ${collection}: ${response.statusText}`);
             return await response.json();
         }
@@ -40,7 +40,7 @@ const api = {
             const url = `${API_BASE_URL}/api/ai/chat`;
             const response = await fetch(url, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
                 body: JSON.stringify({ system_prompt, chat_history })
             });
             if (!response.ok) {
