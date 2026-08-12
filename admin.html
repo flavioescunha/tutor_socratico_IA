@@ -248,6 +248,95 @@
 
     <script src="config.js"></script>
     <script>
+        
+        // Compatibility wrapper para consumir a nova API genérica
+        async function fetchGAS(payload) {
+            if (payload.action === 'admin_login') {
+                try {
+                    const res = await api.db.get('settings', 'global');
+                    if (res.data.admin_user === payload.username && res.data.admin_pass === payload.password) {
+                        return { success: true, token: 'temp_token' };
+                    }
+                    throw new Error('Credenciais invlidas');
+                } catch (e) {
+                    if (e.message.includes('encontrado')) {
+                        return { needs_setup: true }; // no settings means needs setup
+                    }
+                    throw e;
+                }
+            }
+            if (payload.action === 'admin_setup') {
+                await api.db.post('settings', { admin_user: payload.username, admin_pass: payload.password }, 'global');
+                return { success: true };
+            }
+            if (payload.action === 'admin_list_scripts') {
+                const res = await api.db.get('scripts');
+                return { scripts: res.items.map(i => ({ id: i.id, ...i.data })) };
+            }
+            if (payload.action === 'admin_get_script') {
+                const res = await api.db.get('scripts', payload.id);
+                return { script: { id: res.id, ...res.data } };
+            }
+            if (payload.action === 'admin_save_script') {
+                const s = payload.script;
+                const id = s.id; // generic DB ignores id in body if we pass it, but wait! We pass id in query!
+                const dataToSave = { ...s };
+                if (dataToSave.id) delete dataToSave.id;
+                const res = await api.db.post('scripts', dataToSave, id || undefined);
+                return { id: res.id };
+            }
+            if (payload.action === 'admin_delete_script') {
+                await api.db.delete('scripts', payload.id);
+                return { success: true };
+            }
+            if (payload.action === 'admin_get_students') {
+                const res = await api.db.get('students');
+                return { students: res.items.filter(i => i.data.script_id == payload.script_id).map(i => ({ ...i.data })) };
+            }
+            if (payload.action === 'admin_add_students') {
+                for (const st of payload.students) {
+                    await api.db.post('students', st, st.rm + '_' + st.script_id);
+                }
+                return { success: true };
+            }
+            if (payload.action === 'admin_delete_student') {
+                await api.db.delete('students', payload.rm + '_' + payload.script_id);
+                return { success: true };
+            }
+            if (payload.action === 'admin_delete_all_students') {
+                const res = await api.db.get('students');
+                const toDelete = res.items.filter(i => i.data.script_id == payload.script_id);
+                for (const d of toDelete) {
+                    await api.db.delete('students', d.id);
+                }
+                return { success: true };
+            }
+            if (payload.action === 'admin_get_reports') {
+                const res = await api.db.get('sessions');
+                // The frontend expects the objects directly
+                return { reports: res.items.map(i => ({ session_id: i.id, ...i.data })) };
+            }
+            if (payload.action === 'admin_get_settings') {
+                try {
+                    const res = await api.db.get('settings', 'global');
+                    return { settings: res.data };
+                } catch {
+                    return { settings: {} };
+                }
+            }
+            if (payload.action === 'admin_save_settings') {
+                const existing = await api.db.get('settings', 'global').catch(() => ({ data: {} }));
+                const merged = { ...existing.data, ...payload.settings };
+                await api.db.post('settings', merged, 'global');
+                // Also update the backend configuration for API KEY directly via new route if available, 
+                // but wait, server.py uses get_config. Since server.py generic db handles AI directly, 
+                // we can pass api_key in chat request from frontend.
+                return { success: true };
+            }
+            
+            throw new Error('Ação nao mapeada no wrapper: ' + payload.action);
+        }
+
         // Router / Section Manager
         function showSection(id) {
             document.querySelectorAll('main > div').forEach(el => el.classList.add('hidden-section'));

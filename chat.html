@@ -297,7 +297,129 @@
                 alert("Erro ao reiniciar: " + err.message);
             }
         }
-        function renderStepPerformances(steps) {
+        
+        // Compatibility wrapper for chat.html
+        async function fetchGAS(payload) {
+            if (payload.action === 'student_get_chat') {
+                const sessionRes = await api.db.get('sessions', payload.session_id);
+                const session = sessionRes.data;
+                const scriptRes = await api.db.get('scripts', session.script_id);
+                const script = scriptRes.data;
+                
+                return {
+                    script: script,
+                    chat_history: session.chat_history || [],
+                    status: session.status,
+                    final_grade: session.final_grade,
+                    step_performances: session.logs || [],
+                    attempt_count: session.attempt_count,
+                    current_item_order: session.current_item_order,
+                    total_item_count: script.items ? script.items.length : 0
+                };
+            }
+            if (payload.action === 'student_send_message') {
+                const sessionRes = await api.db.get('sessions', payload.session_id);
+                const session = sessionRes.data;
+                const scriptRes = await api.db.get('scripts', session.script_id);
+                const script = scriptRes.data;
+                
+                if (session.status === 'completed') throw new Error('Atividade já concluída.');
+                
+                // Add user message
+                session.chat_history = session.chat_history || [];
+                session.chat_history.push({ role: 'user', content: payload.message });
+                
+                const currentItem = script.items[session.current_item_order - 1];
+                const nextItem = script.items[session.current_item_order];
+                
+                // Construir o Prompt
+                let systemPrompt = "Você é um Tutor Socrático especializado em IA. Seu objetivo é ajudar o aluno a aprender guiando-o APENAS pelo tópico atual.\n";
+                systemPrompt += "REGRAS CRÍTICAS:\n";
+                systemPrompt += "- VOCÊ É ESTRITAMENTE PROIBIDO DE DAR A RESPOSTA PRONTA. Faça perguntas instigantes.\n";
+                systemPrompt += "- Faça perguntas abertas e reflexivas. Jamais faça perguntas de 'sim/não' ou que permitam respostas secas. Exija (e induza) o aluno a elaborar a resposta na forma de um texto/parágrafo coeso, com começo, meio e fim.\n";
+                systemPrompt += "- A 'justificativa_nota' deve ser curta e objetiva, contendo no MÁXIMO 240 caracteres.\n";
+                systemPrompt += "- Avalie se o aluno demonstrou compreensão do [OBJETIVO DO ITEM ATUAL].\n";
+                systemPrompt += "- A 'nota_etapa' DEVE OBRIGATORIAMENTE ser um número de 0 a 10 representando a avaliação do desempenho do aluno. Nunca coloque a resposta do exercício neste campo!\n";
+                systemPrompt += "- Se o aluno NÃO compreendeu, continue focado no [OBJETIVO DO ITEM ATUAL].\n";
+                systemPrompt += "- Se o aluno JÁ compreendeu o objetivo atual (status 'aprovado'), parabenize-o brevemente e IMEDIATAMENTE inicie uma nova pergunta baseada no [PRÓXIMO OBJETIVO] na sua 'resposta_chat'.\n";
+                systemPrompt += "- Se o aluno já demonstrou compreensão do objetivo atual, apenas parabenize-o brevemente e conclua a atividade. Não inicie um novo assunto.\n";
+                systemPrompt += "Sua resposta deve ser estritamente um JSON no formato: {\"analise_raciocinio_aluno\": \"...\", \"status_item\": \"aprovado|refazer|falha_definitiva\", \"nota_etapa\": \"0 a 10\", \"justificativa_nota\": \"...\", \"resposta_chat\": \"...\"}\n\n";
+                systemPrompt += "[CONTEXTO DO ROTEIRO]\nDisciplina: " + script.subject + "\nTópico: " + script.title + "\n\n";
+                systemPrompt += "[OBJETIVO DO ITEM ATUAL]\n" + currentItem.description + "\n\n";
+                if (nextItem) {
+                    systemPrompt += "[PRÓXIMO OBJETIVO (usar apenas se aprovado no atual)]\n" + nextItem.description + "\n\n";
+                }
+                systemPrompt += "[INSTRUÇÕES DE STATUS]\n1. Se o aluno compreendeu satisfatoriamente o OBJETIVO ATUAL, status_item = 'aprovado'.\n2. Se o aluno ainda precisa refletir ou errou, status_item = 'refazer'.\n";
+
+                const aiRes = await api.ai.chat(systemPrompt, session.chat_history);
+                const aiText = aiRes.reply;
+                
+                let parsed;
+                try {
+                    const jsonMatch = aiText.match(/\{.*\}/s);
+                    if (jsonMatch) {
+                        parsed = JSON.parse(jsonMatch[0]);
+                    } else {
+                        parsed = JSON.parse(aiText);
+                    }
+                } catch (e) {
+                    console.error("Failed to parse AI JSON: ", aiText);
+                    throw new Error("Erro na comunicação com a IA (Formato inválido). Tente novamente.");
+                }
+                
+                const replyText = parsed.resposta_chat || "Continuando...";
+                session.chat_history.push({ role: 'assistant', content: replyText });
+                
+                if (parsed.status_item === 'aprovado' || parsed.status_item === 'falha_definitiva') {
+                    session.logs = session.logs || [];
+                    session.logs.push({
+                        step: session.current_item_order,
+                        status: parsed.status_item,
+                        nota: parsed.nota_etapa,
+                        justificativa: parsed.justificativa_nota,
+                        analise: parsed.analise_raciocinio_aluno,
+                        timestamp: new Date().toISOString()
+                    });
+                    
+                    session.current_item_order += 1;
+                    
+                    if (session.current_item_order > script.items.length) {
+                        session.status = 'completed';
+                        // Calcular nota final
+                        let soma = 0;
+                        session.logs.forEach(l => {
+                            const n = parseFloat(String(l.nota).replace(',', '.'));
+                            if (!isNaN(n)) soma += n;
+                        });
+                        session.final_grade = (soma / session.logs.length).toFixed(1);
+                        
+                        // Update student status to completed
+                        const studentId = session.student_rm + '_' + session.script_id;
+                        try {
+                            const stRes = await api.db.get('students', studentId);
+                            if (stRes.data) {
+                                stRes.data.status = 'completed';
+                                await api.db.post('students', stRes.data, studentId);
+                            }
+                        } catch(e) {}
+                    }
+                }
+                
+                // Save session
+                await api.db.post('sessions', session, payload.session_id);
+                
+                return {
+                    reply: replyText,
+                    status: session.status,
+                    current_item_order: session.current_item_order,
+                    total_item_count: script.items.length,
+                    final_grade: session.final_grade,
+                    step_performances: session.logs
+                };
+            }
+            throw new Error('Ação nao mapeada: ' + payload.action);
+        }
+\n        function renderStepPerformances(steps) {
             if (!steps || steps.length === 0) return;
             const container = document.getElementById('step-performances-container');
             const list = document.getElementById('step-performances-list');

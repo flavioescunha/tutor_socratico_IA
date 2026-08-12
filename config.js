@@ -1,33 +1,68 @@
-// URL do seu novo servidor Python
-const GAS_URL = "https://ruminatively-immediate-dawn.ngrok-free.dev/exec";
+// config.js
+const API_BASE_URL = "https://ruminatively-immediate-dawn.ngrok-free.dev";
 
-async function fetchGAS(payload) {
-    if (GAS_URL === "SUA_URL_DO_GOOGLE_APPS_SCRIPT_AQUI") {
-        throw new Error("⚠️ O sistema ainda não foi configurado. Insira a URL do Google Apps Script em config.js");
-    }
-    
-    // Auto-append admin token if available
-    if (payload.action && payload.action.startsWith("admin_")) {
-        payload.token = localStorage.getItem("admin_token");
-    }
-
-    // Google Apps Script exige fetch com Content-Type text/plain para evitar erro de CORS (Preflight OPTIONS)
-    const response = await fetch(GAS_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'text/plain;charset=utf-8'
+const api = {
+    db: {
+        async get(collection, id = null) {
+            const url = id ? `${API_BASE_URL}/api/db/${collection}/${id}` : `${API_BASE_URL}/api/db/${collection}`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Erro ao buscar ${collection}: ${response.statusText}`);
+            return await response.json();
         },
-        body: JSON.stringify(payload)
-    });
-    
-    if (!response.ok) {
-        throw new Error(`Erro de rede (Status: ${response.status}, Tipo: ${response.type}): ${response.statusText}`);
+        async post(collection, data, id = null) {
+            const url = id ? `${API_BASE_URL}/api/db/${collection}?item_id=${id}` : `${API_BASE_URL}/api/db/${collection}`;
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ data })
+            });
+            if (!response.ok) {
+                let errText = "";
+                try {
+                    const errJson = await response.json();
+                    errText = errJson.detail || JSON.stringify(errJson);
+                } catch(e) {
+                    errText = response.statusText;
+                }
+                throw new Error(`Erro ao salvar ${collection}: ${errText}`);
+            }
+            return await response.json();
+        },
+        async delete(collection, id) {
+            const url = `${API_BASE_URL}/api/db/${collection}/${id}`;
+            const response = await fetch(url, { method: "DELETE" });
+            if (!response.ok) throw new Error(`Erro ao deletar ${collection}: ${response.statusText}`);
+            return await response.json();
+        }
+    },
+    ai: {
+        async chat(system_prompt, chat_history) {
+            const url = `${API_BASE_URL}/api/ai/chat`;
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ system_prompt, chat_history })
+            });
+            if (!response.ok) {
+                let errText = "";
+                try {
+                    const errJson = await response.json();
+                    errText = errJson.detail || JSON.stringify(errJson);
+                } catch(e) {
+                    errText = response.statusText;
+                }
+                throw new Error(`Erro na IA: ${errText}`);
+            }
+            return await response.json();
+        }
     }
-    
-    const json = await response.json();
-    if (json.status === "error") {
-        throw new Error(json.message);
-    }
-    
-    return json.data;
+};
+
+// Funções para lidar com sessões ativas
+function getActiveSession() {
+    return JSON.parse(localStorage.getItem('student_session') || 'null');
+}
+
+function setActiveSession(session) {
+    localStorage.setItem('student_session', JSON.stringify(session));
 }

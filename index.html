@@ -108,6 +108,68 @@
             }
         });
 
+        // Compatibility wrapper
+        async function fetchGAS(payload) {
+            if (payload.action === 'student_login') {
+                try {
+                    const scriptRes = await api.db.get('scripts', payload.script_id);
+                    if (!scriptRes.data) throw new Error('Atividade não encontrada.');
+                    
+                    const studentId = payload.rm + '_' + payload.script_id;
+                    let student;
+                    try {
+                        const stRes = await api.db.get('students', studentId);
+                        student = stRes.data;
+                    } catch {
+                        throw new Error('RM não cadastrado para esta atividade.');
+                    }
+                    
+                    if (student.name.toLowerCase() !== payload.name.toLowerCase().trim()) {
+                        throw new Error('Nome ou RM incorretos.');
+                    }
+                    
+                    const sessionsRes = await api.db.get('sessions');
+                    const mySessions = (sessionsRes.items || []).filter(i => i.data.student_rm === payload.rm && i.data.script_id === payload.script_id);
+                    const completedCount = mySessions.filter(i => i.data.status === 'completed').length;
+                    const inProgress = mySessions.find(i => i.data.status === 'in_progress');
+                    
+                    let sessionId;
+                    if (inProgress) {
+                        sessionId = inProgress.id;
+                    } else {
+                        if (scriptRes.data.attempts_limit > 0 && completedCount >= scriptRes.data.attempts_limit) {
+                            return { success: false, max_attempts_reached: true };
+                        }
+                        sessionId = 'sess_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+                        await api.db.post('sessions', {
+                            student_rm: payload.rm,
+                            student_name: student.name,
+                            script_id: payload.script_id,
+                            status: 'in_progress',
+                            current_item_order: 1,
+                            attempt_count: completedCount + 1,
+                            chat_history: [],
+                            logs: [],
+                            step_grades: {}
+                        }, sessionId);
+                    }
+                    
+                    await api.db.post('students', { ...student, status: 'active', attempts: completedCount + (inProgress ? 0 : 1) }, studentId);
+                    
+                    return {
+                        success: true,
+                        session_id: sessionId,
+                        name: student.name,
+                        rm: student.rm,
+                        script_id: payload.script_id
+                    };
+                } catch(e) {
+                    throw new Error(e.message);
+                }
+            }
+            throw new Error('Ação nao mapeada: ' + payload.action);
+        }
+
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             
