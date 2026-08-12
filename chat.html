@@ -450,6 +450,12 @@
                     const overlay = document.getElementById('initial-instructions-overlay');
                     document.getElementById('initial-instructions-content').innerText = data.script.initial_instructions;
                     overlay.classList.remove('hidden');
+                } else if (data.chat_history.length === 0) {
+                    setTimeout(() => {
+                        const inputElement = document.getElementById('message-input');
+                        inputElement.value = "Estou pronto, vamos começar!";
+                        document.getElementById('message-form').dispatchEvent(new Event('submit'));
+                    }, 500);
                 }
                 
                 chatContainer.innerHTML = '';
