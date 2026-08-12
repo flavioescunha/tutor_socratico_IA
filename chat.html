@@ -454,7 +454,7 @@
                     setTimeout(() => {
                         const inputElement = document.getElementById('message-input');
                         inputElement.value = "Estou pronto, vamos começar!";
-                        document.getElementById('message-form').dispatchEvent(new Event('submit'));
+                        document.getElementById('send-btn').click();
                     }, 500);
                 }
                 
@@ -589,7 +589,7 @@
             if (chatContainer.children.length === 0) {
                 const inputElement = document.getElementById('message-input');
                 inputElement.value = "Estou pronto, vamos começar!";
-                document.getElementById('message-form').dispatchEvent(new Event('submit'));
+                document.getElementById('send-btn').click();
             }
         }
 
