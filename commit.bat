@@ -13,5 +13,6 @@ if "%MSG%"=="" (
 )
 git add -A
 git commit -m "%MSG%"
+git push
 echo.
 pause
