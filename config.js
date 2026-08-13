@@ -5,7 +5,12 @@ const api = {
     db: {
         async get(collection, id = null) {
             const url = id ? `${API_BASE_URL}/api/db/${collection}/${id}` : `${API_BASE_URL}/api/db/${collection}`;
-            const response = await fetch(url, { headers: { "ngrok-skip-browser-warning": "true" } });
+            let response;
+            try {
+                response = await fetch(url, { headers: { "ngrok-skip-browser-warning": "true" } });
+            } catch (err) {
+                throw new Error(`Falha de rede ao acessar servidor (${err.message}). O Ngrok está rodando?`);
+            }
             if (!response.ok) {
                 if (response.status === 404) throw new Error("404 Not Found");
                 throw new Error(`Erro ao buscar ${collection}: ${response.statusText}`);
@@ -14,11 +19,16 @@ const api = {
         },
         async post(collection, data, id = null) {
             const url = id ? `${API_BASE_URL}/api/db/${collection}?item_id=${id}` : `${API_BASE_URL}/api/db/${collection}`;
-            const response = await fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
-                body: JSON.stringify({ data })
-            });
+            let response;
+            try {
+                response = await fetch(url, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+                    body: JSON.stringify({ data })
+                });
+            } catch (err) {
+                throw new Error(`Falha de rede ao acessar servidor (${err.message}). O Ngrok está rodando?`);
+            }
             if (!response.ok) {
                 let errText = "";
                 try {
