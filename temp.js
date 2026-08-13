@@ -1,188 +1,4 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tutor Socrático IA - Chat</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'], display: ['Outfit', 'sans-serif'] },
-                    colors: { primary: {50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 900: '#0c4a6e'}, dark: {900: '#0f172a', 800: '#1e293b', 700: '#334155'} }
-                }
-            }
-        }
-    </script>
-    <style>
-        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        .message-in { animation: messageIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform-origin: bottom left; }
-        .message-out { animation: messageIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform-origin: bottom right; }
-        @keyframes messageIn { 0% { opacity: 0; transform: scale(0.95) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
-        .typing-dot { animation: typing 1.4s infinite ease-in-out both; }
-        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
-        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
-        @keyframes shimmer { 100% { transform: translateX(100%); } }
-        .markdown-body p { margin-bottom: 0.5rem; }
-        .markdown-body strong { font-weight: 600; color: #fff; }
-        
-        /* Bloqueio visual de seleção de texto (opcional) */
-        .no-select {
-            -webkit-user-select: none; /* Safari */
-            -ms-user-select: none; /* IE 10 and IE 11 */
-            user-select: none; /* Standard syntax */
-        }
-    </style>
-</head>
-<body class="bg-dark-900 text-slate-200 h-screen font-sans flex flex-col relative overflow-hidden no-select" oncontextmenu="return false;">
-    <div class="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary-600/10 blur-[120px] pointer-events-none"></div>
-    
-    <header class="glass-panel border-b border-slate-700/50 flex-none z-10">
-        <div class="max-w-4xl mx-auto px-4 py-3 flex flex-col space-y-3">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-primary-600/20 rounded-xl flex items-center justify-center border border-primary-500/30">
-                        <i class="fa-solid fa-robot text-primary-400"></i>
-                    </div>
-                    <div>
-                        <h1 class="font-display font-semibold text-white leading-tight">Tutor Socrático</h1>
-                        <p class="text-xs text-primary-400 flex items-center">
-                            <span class="w-2 h-2 rounded-full bg-primary-500 mr-1.5 animate-pulse"></span>
-                            Online
-                        </p>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <div class="text-right hidden sm:block">
-                        <p id="student-name" class="text-sm font-medium text-white"></p>
-                        <p class="text-xs text-slate-400">Aluno</p>
-                    </div>
-                    <button onclick="restartAttempt()" class="w-10 h-10 bg-dark-800 hover:bg-primary-500/20 hover:text-primary-400 rounded-xl flex items-center justify-center text-slate-400 transition-colors border border-slate-700 hover:border-primary-500/30" title="Iniciar Nova Tentativa">
-                        <i class="fa-solid fa-rotate-right"></i>
-                    </button>
-                    <button onclick="logout()" class="w-10 h-10 bg-dark-800 hover:bg-red-500/20 hover:text-red-400 rounded-xl flex items-center justify-center text-slate-400 transition-colors border border-slate-700 hover:border-red-500/30" title="Sair">
-                        <i class="fa-solid fa-right-from-bracket"></i>
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Barra de Progresso -->
-            <div id="progress-container" class="hidden">
-                <div class="flex justify-between items-center text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5">
-                    <span id="progress-text">Etapa -- de --</span>
-                    <span id="progress-percent">--%</span>
-                </div>
-                <div class="w-full bg-dark-800 rounded-full h-1.5 border border-slate-700 overflow-hidden shadow-inner">
-                    <div id="progress-bar-fill" class="bg-gradient-to-r from-primary-600 to-primary-400 h-1.5 rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(14,165,233,0.5)]" style="width: 0%"></div>
-                </div>
-            </div>
-        </div>
-    </header>
 
-    <!-- Instruções Iniciais Overlay -->
-    <div id="initial-instructions-overlay" class="absolute inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 hidden">
-        <!-- Animated Background Gradient -->
-        <div class="absolute inset-0 bg-dark-900/80 backdrop-blur-xl"></div>
-        <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-primary-600/20 rounded-full blur-[100px] animate-pulse"></div>
-        <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-600/20 rounded-full blur-[100px] animate-pulse" style="animation-delay: 2s;"></div>
-        
-        <!-- Modal Content -->
-        <div class="relative w-full max-w-3xl rounded-[2.5rem] p-[2px] bg-gradient-to-br from-slate-700/50 via-slate-800/20 to-primary-900/50 shadow-2xl animate-[messageIn_0.6s_ease-out]">
-            <div class="glass-panel rounded-[calc(2.5rem-2px)] p-8 sm:p-10 flex flex-col max-h-[85vh] bg-dark-900/90 relative overflow-hidden">
-                <!-- Decorative Top Banner -->
-                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary-400 via-indigo-500 to-purple-500"></div>
-                
-                <!-- Header -->
-                <div class="flex items-center space-x-5 mb-8">
-                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 flex-shrink-0 animate-[pulse_3s_infinite]">
-                        <i class="fa-solid fa-graduation-cap text-3xl text-white"></i>
-                    </div>
-                    <div>
-                        <h2 class="text-3xl font-display font-bold text-white tracking-tight">Antes de começar...</h2>
-                        <p class="text-slate-400 mt-1">Leia com atenção as instruções do seu professor.</p>
-                    </div>
-                </div>
-                
-                <!-- Content -->
-                <div class="text-slate-200 text-base sm:text-lg overflow-y-auto custom-scrollbar flex-grow bg-dark-800/40 p-6 sm:p-8 rounded-2xl border border-slate-700/30 mb-8 leading-relaxed shadow-inner relative">
-                    <div class="absolute top-4 left-4 text-primary-500/20 pointer-events-none">
-                        <i class="fa-solid fa-quote-left text-4xl"></i>
-                    </div>
-                    <div id="initial-instructions-content" class="whitespace-pre-wrap font-medium relative z-10 pl-2"></div>
-                </div>
-                
-                <!-- Action -->
-                <button onclick="startChatFromInstructions()" class="group relative w-full bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white font-bold text-lg py-5 rounded-2xl transition-all duration-300 transform hover:-translate-y-1 shadow-[0_10px_40px_-10px_rgba(79,70,229,0.7)] flex justify-center items-center flex-shrink-0 overflow-hidden">
-                    <span class="relative z-10 flex items-center">
-                        Estou pronto, Iniciar Chat! <i class="fa-solid fa-rocket ml-3 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"></i>
-                    </span>
-                    <div class="absolute inset-0 h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <main class="flex-grow flex flex-col max-w-4xl w-full mx-auto relative z-10 overflow-hidden">
-        <div id="chat-container" class="flex-grow overflow-y-auto p-4 sm:p-6 space-y-6">
-            <!-- Messages will be injected here -->
-        </div>
-
-        <div id="typing-indicator" class="hidden px-6 pb-4">
-            <div class="flex items-end max-w-[85%]">
-                <div class="w-8 h-8 rounded-full bg-dark-800 flex items-center justify-center mr-3 flex-shrink-0 border border-slate-700">
-                    <i class="fa-solid fa-robot text-xs text-slate-400"></i>
-                </div>
-                <div class="bg-dark-800 border border-slate-700 rounded-2xl rounded-bl-sm py-3 px-4 shadow-sm">
-                    <div class="flex space-x-1.5 h-5 items-center">
-                        <div class="w-2 h-2 bg-slate-500 rounded-full typing-dot"></div>
-                        <div class="w-2 h-2 bg-slate-500 rounded-full typing-dot"></div>
-                        <div class="w-2 h-2 bg-slate-500 rounded-full typing-dot"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="completion-banner" class="hidden p-4 bg-green-500/20 border-t border-green-500/30 text-center">
-            <h3 class="text-green-400 font-semibold mb-1"><i class="fa-solid fa-check-circle mr-2"></i>Atividade Concluída!</h3>
-            <p class="text-sm text-green-200/70">Você finalizou todos os objetivos deste roteiro. Pode fechar esta aba.</p>
-            <p id="final-grade-display" class="mt-2 text-lg font-bold text-white hidden">Desempenho Final: <span id="final-grade-value" class="text-green-400"></span> / 10</p>
-            <div id="step-performances-container" class="mt-4 text-left hidden space-y-3">
-                <h4 class="text-md font-semibold text-white mb-2 border-b border-slate-700 pb-1">Desempenho por Etapa:</h4>
-                <div id="step-performances-list"></div>
-            </div>
-            
-            <div id="restart-attempt-container" class="mt-6 hidden">
-                <button onclick="restartAttempt()" class="bg-primary-600 hover:bg-primary-500 text-white font-bold py-2 px-6 rounded-xl transition-colors border border-primary-500 shadow-lg">
-                    <i class="fa-solid fa-rotate-right mr-2"></i>Tentar Novamente
-                </button>
-                <p id="attempts-remaining-text" class="text-xs text-green-200/50 mt-2"></p>
-            </div>
-        </div>
-
-        <div id="input-area" class="p-4 sm:p-6 bg-gradient-to-t from-dark-900 via-dark-900 to-transparent pt-10">
-            <form id="message-form" class="relative max-w-4xl mx-auto flex items-end gap-2">
-                <div class="relative flex-grow">
-                    <textarea id="message-input" rows="1" placeholder="Digite sua resposta aqui..." 
-                        class="w-full bg-dark-800 border border-slate-700 text-slate-200 rounded-2xl pl-5 pr-12 py-4 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none transition-all"
-                        style="min-height: 56px; max-height: 200px;"></textarea>
-                </div>
-                <button type="submit" id="send-btn" class="w-14 h-[56px] flex-shrink-0 bg-primary-600 hover:bg-primary-500 text-white rounded-2xl flex items-center justify-center transition-colors shadow-lg shadow-primary-600/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <i class="fa-solid fa-paper-plane"></i>
-                </button>
-            </form>
-            <p class="text-center text-[11px] text-slate-500 mt-3 font-medium">
-                A IA atua como um Tutor Socrático. Ela te fará perguntas para que você chegue à conclusão sozinho.
-            </p>
-        </div>
-    </main>
-
-    <script src="config.js"></script>
-    <script>
         const sessionData = JSON.parse(localStorage.getItem('student_session'));
         if (!sessionData) {
             window.location.href = 'index.html';
@@ -304,16 +120,17 @@
                 const sessionRes = await api.db.get('sessions', payload.session_id);
                 const session = sessionRes.data;
                 const scriptRes = await api.db.get('scripts', session.script_id);
+                const script = scriptRes.data;
                 
                 return {
-                    status: session.status,
+                    script: script,
                     chat_history: session.chat_history || [],
+                    status: session.status,
                     final_grade: session.final_grade,
-                    step_performances: session.logs,
+                    step_performances: session.logs || [],
                     attempt_count: session.attempt_count,
                     current_item_order: session.current_item_order,
-                    total_item_count: scriptRes.data.items ? scriptRes.data.items.length : 0,
-                    script: scriptRes.data
+                    total_item_count: script.items ? script.items.length : 0
                 };
             }
             if (payload.action === 'student_send_message') {
@@ -344,9 +161,9 @@
                 systemPrompt += "- Se o aluno já demonstrou compreensão do objetivo atual, apenas parabenize-o brevemente e conclua a atividade. Não inicie um novo assunto.\n";
                 systemPrompt += "Sua resposta deve ser estritamente um JSON no formato: {\"analise_raciocinio_aluno\": \"...\", \"status_item\": \"aprovado|refazer|falha_definitiva\", \"nota_etapa\": \"0 a 10\", \"justificativa_nota\": \"...\", \"resposta_chat\": \"...\"}\n\n";
                 systemPrompt += "[CONTEXTO DO ROTEIRO]\nDisciplina: " + script.subject + "\nTópico: " + script.title + "\n\n";
-                systemPrompt += "[OBJETIVO DO ITEM ATUAL]\n" + (typeof currentItem === 'string' ? currentItem : (currentItem.description || '')) + "\n\n";
+                systemPrompt += "[OBJETIVO DO ITEM ATUAL]\n" + currentItem.description + "\n\n";
                 if (nextItem) {
-                    systemPrompt += "[PRÓXIMO OBJETIVO (usar apenas se aprovado no atual)]\n" + (typeof nextItem === 'string' ? nextItem : (nextItem.description || '')) + "\n\n";
+                    systemPrompt += "[PRÓXIMO OBJETIVO (usar apenas se aprovado no atual)]\n" + nextItem.description + "\n\n";
                 }
                 systemPrompt += "[INSTRUÇÕES DE STATUS]\n1. Se o aluno compreendeu satisfatoriamente o OBJETIVO ATUAL, status_item = 'aprovado'.\n2. Se o aluno ainda precisa refletir ou errou, status_item = 'refazer'.\n";
 
@@ -429,9 +246,9 @@
                     <div class="bg-dark-800 p-3 rounded-lg border border-slate-700">
                         <div class="flex justify-between items-center mb-1">
                             <span class="font-medium text-slate-200">Etapa ${step.step}</span>
-                            <span class="font-bold text-indigo-400">${step.nota} / 10</span>
+                            <span class="font-bold text-indigo-400">${step.grade} / 10</span>
                         </div>
-                        <p class="text-sm text-slate-400 italic">"${step.justificativa}"</p>
+                        <p class="text-sm text-slate-400 italic">"${step.justification}"</p>
                     </div>
                 `;
             });
@@ -593,6 +410,4 @@
         }
 
         loadChat();
-    </script>
-</body>
-</html>
+    
