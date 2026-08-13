@@ -743,6 +743,9 @@
         async function loadSettings() {
             try {
                 const data = await fetchGAS({ action: 'admin_get_settings' });
+                if (data.settings && data.settings.gemini_api_key) {
+                    document.getElementById('set-key').value = data.settings.gemini_api_key;
+                }
             } catch (e) {}
         }
         
@@ -754,7 +757,7 @@
             try {
                 await fetchGAS({
                     action: 'admin_save_settings',
-                    llm_api_key: document.getElementById('set-key').value
+                    settings: { gemini_api_key: document.getElementById('set-key').value }
                 });
                 const msg = document.getElementById('settings-msg');
                 msg.classList.remove('hidden');
