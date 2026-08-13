@@ -51,10 +51,9 @@ const api = {
                 method: "POST",
                 headers: { 
                     "Content-Type": "application/json", 
-                    "ngrok-skip-browser-warning": "true",
-                    "x-gemini-api-key": apiKey
+                    "ngrok-skip-browser-warning": "true"
                 },
-                body: JSON.stringify({ system_prompt, chat_history })
+                body: JSON.stringify({ system_prompt, chat_history, api_key: apiKey })
             });
             if (!response.ok) {
                 let errText = "";
