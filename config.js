@@ -1,5 +1,5 @@
 // config.js
-const API_BASE_URL = "https://hub-harris-guest-carnival.trycloudflare.com";
+const API_BASE_URL = "https://asus-finish-signs-season.trycloudflare.com";
 
 const api = {
     db: {
