@@ -1,5 +1,5 @@
 // config.js
-const API_BASE_URL = "https://mothers-considerations-designation-movie.trycloudflare.com";
+const API_BASE_URL = "https://historic-rotation-mins-pumps.trycloudflare.com";
 
 const api = {
     db: {

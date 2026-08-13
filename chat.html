@@ -559,12 +559,12 @@
             };
 
             try {
-                const response = await fetch("https://salaries-adapters-alliance-cyber.trycloudflare.com/api/enviar-relatorio", {
+                const response = await fetch(`${API_BASE_URL}/api/db/relatorios`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
                     },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({ data: payload })
                 });
 
                 if (response.ok) {
