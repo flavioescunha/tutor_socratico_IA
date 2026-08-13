@@ -649,7 +649,8 @@
                     // Removemos o ID antigo para o servidor gerar um novo
                     delete scriptData.id;
 
-                    const itemsDesc = scriptData.items.map(item => item.description);
+                    // Suporte para retrocompatibilidade: formato antigo era objeto {description: "..."}
+                    const itemsDesc = scriptData.items.map(item => typeof item === 'string' ? item : (item.description || ""));
 
                     const payload = {
                         action: 'admin_save_script',
