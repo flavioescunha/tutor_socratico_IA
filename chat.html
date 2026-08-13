@@ -304,17 +304,16 @@
                 const sessionRes = await api.db.get('sessions', payload.session_id);
                 const session = sessionRes.data;
                 const scriptRes = await api.db.get('scripts', session.script_id);
-                const script = scriptRes.data;
                 
                 return {
-                    script: script,
-                    chat_history: session.chat_history || [],
                     status: session.status,
+                    chat_history: session.chat_history || [],
                     final_grade: session.final_grade,
-                    step_performances: session.logs || [],
+                    step_performances: session.logs,
                     attempt_count: session.attempt_count,
                     current_item_order: session.current_item_order,
-                    total_item_count: script.items ? script.items.length : 0
+                    total_item_count: scriptRes.data.items ? scriptRes.data.items.length : 0,
+                    script: scriptRes.data
                 };
             }
             if (payload.action === 'student_send_message') {
@@ -430,9 +429,9 @@
                     <div class="bg-dark-800 p-3 rounded-lg border border-slate-700">
                         <div class="flex justify-between items-center mb-1">
                             <span class="font-medium text-slate-200">Etapa ${step.step}</span>
-                            <span class="font-bold text-indigo-400">${step.grade} / 10</span>
+                            <span class="font-bold text-indigo-400">${step.nota} / 10</span>
                         </div>
-                        <p class="text-sm text-slate-400 italic">"${step.justification}"</p>
+                        <p class="text-sm text-slate-400 italic">"${step.justificativa}"</p>
                     </div>
                 `;
             });
