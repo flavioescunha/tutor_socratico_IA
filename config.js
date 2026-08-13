@@ -1,5 +1,5 @@
 // config.js
-const API_BASE_URL = "https://ruminatively-immediate-dawn.ngrok-free.dev";
+const API_BASE_URL = "https://mothers-considerations-designation-movie.trycloudflare.com";
 
 const api = {
     db: {
@@ -9,7 +9,7 @@ const api = {
             try {
                 response = await fetch(url, { headers: { "ngrok-skip-browser-warning": "true" } });
             } catch (err) {
-                throw new Error(`Falha de rede ao acessar servidor (${err.message}). O Ngrok está rodando?`);
+                throw new Error(`Falha de rede ao acessar servidor (${err.message}). O Cloudflare Tunnel está rodando?`);
             }
             if (!response.ok) {
                 if (response.status === 404) throw new Error("404 Not Found");
@@ -27,7 +27,7 @@ const api = {
                     body: JSON.stringify({ data })
                 });
             } catch (err) {
-                throw new Error(`Falha de rede ao acessar servidor (${err.message}). O Ngrok está rodando?`);
+                throw new Error(`Falha de rede ao acessar servidor (${err.message}). O Cloudflare Tunnel está rodando?`);
             }
             if (!response.ok) {
                 let errText = "";
