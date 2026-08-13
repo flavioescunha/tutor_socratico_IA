@@ -294,8 +294,12 @@
                 return { students: res.items.filter(i => i.data.script_id == payload.script_id).map(i => ({ ...i.data })) };
             }
             if (payload.action === 'admin_add_students') {
+                const scriptId = payload.script_id;
                 for (const st of payload.students) {
-                    await api.db.post('students', st, st.rm + '_' + st.script_id);
+                    st.script_id = scriptId;
+                    st.status = 'pending';
+                    st.attempts = 0;
+                    await api.db.post('students', st, st.rm + '_' + scriptId);
                 }
                 return { success: true };
             }

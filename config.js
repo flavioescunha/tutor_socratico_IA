@@ -40,10 +40,20 @@ const api = {
     },
     ai: {
         async chat(system_prompt, chat_history) {
+            let apiKey = "";
+            try {
+                const setRes = await api.db.get('settings', 'global');
+                apiKey = setRes.data.gemini_api_key || "";
+            } catch(e) {}
+            
             const url = `${API_BASE_URL}/api/ai/chat`;
             const response = await fetch(url, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+                headers: { 
+                    "Content-Type": "application/json", 
+                    "ngrok-skip-browser-warning": "true",
+                    "x-gemini-api-key": apiKey
+                },
                 body: JSON.stringify({ system_prompt, chat_history })
             });
             if (!response.ok) {
