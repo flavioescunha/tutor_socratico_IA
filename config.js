@@ -1,5 +1,5 @@
 // config.js
-const API_BASE_URL = "https://walked-orbit-accommodate-begin.trycloudflare.com";
+const API_BASE_URL = "https://sonic-ashley-wednesday-stephanie.trycloudflare.com";
 
 const api = {
     db: {
