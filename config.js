@@ -1,5 +1,5 @@
 // config.js
-const API_BASE_URL = "https://sonic-ashley-wednesday-stephanie.trycloudflare.com";
+const API_BASE_URL = "https://api.fisicaeciencia.org";
 
 const api = {
     db: {
