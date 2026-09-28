@@ -449,7 +449,9 @@
                 
                 if (data.script && data.script.initial_instructions && data.script.initial_instructions.trim() !== '') {
                     const overlay = document.getElementById('initial-instructions-overlay');
-                    document.getElementById('initial-instructions-content').innerHTML = marked.parse(data.script.initial_instructions);
+                    const contentDiv = document.getElementById('initial-instructions-content');
+                    contentDiv.innerHTML = marked.parse(data.script.initial_instructions);
+                    contentDiv.querySelectorAll('a').forEach(a => a.setAttribute('target', '_blank'));
                     overlay.classList.remove('hidden');
                 } else if (data.chat_history.length === 0) {
                     setTimeout(() => {
