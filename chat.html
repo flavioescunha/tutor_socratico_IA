@@ -30,6 +30,8 @@
         @keyframes shimmer { 100% { transform: translateX(100%); } }
         .markdown-body p { margin-bottom: 0.5rem; }
         .markdown-body strong { font-weight: 600; color: #fff; }
+        .markdown-body a { color: #38bdf8; text-decoration: underline; }
+        .markdown-body a:hover { color: #7dd3fc; }
         
         /* Bloqueio visual de seleção de texto (opcional) */
         .no-select {
@@ -113,7 +115,7 @@
                     <div class="absolute top-4 left-4 text-primary-500/20 pointer-events-none">
                         <i class="fa-solid fa-quote-left text-4xl"></i>
                     </div>
-                    <div id="initial-instructions-content" class="whitespace-pre-wrap font-medium relative z-10 pl-2"></div>
+                    <div id="initial-instructions-content" class="markdown-body whitespace-pre-wrap font-medium relative z-10 pl-2"></div>
                 </div>
                 
                 <!-- Action -->
@@ -447,7 +449,7 @@
                 
                 if (data.script && data.script.initial_instructions && data.script.initial_instructions.trim() !== '') {
                     const overlay = document.getElementById('initial-instructions-overlay');
-                    document.getElementById('initial-instructions-content').innerText = data.script.initial_instructions;
+                    document.getElementById('initial-instructions-content').innerHTML = marked.parse(data.script.initial_instructions);
                     overlay.classList.remove('hidden');
                 } else if (data.chat_history.length === 0) {
                     setTimeout(() => {
