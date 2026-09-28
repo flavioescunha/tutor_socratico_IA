@@ -683,7 +683,7 @@
             const div = document.createElement('div');
             div.className = "flex gap-2";
             div.innerHTML = `
-                <textarea required class="flex-grow bg-dark-800/50 border border-slate-700 rounded-xl text-white px-4 py-2 text-sm resize-none focus:ring-1 focus:ring-indigo-500" rows="2" placeholder="O aluno deve aprender que...">${val}</textarea>
+                <textarea required class="flex-grow bg-dark-800/50 border border-slate-700 rounded-xl text-white px-4 py-2 text-sm resize-y focus:ring-1 focus:ring-indigo-500" rows="4" placeholder="O aluno deve aprender que...">${val}</textarea>
                 <button type="button" onclick="this.parentElement.remove()" class="w-10 h-10 flex-shrink-0 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-xl flex items-center justify-center"><i class="fa-solid fa-trash"></i></button>
             `;
             c.appendChild(div);
