@@ -461,7 +461,7 @@
         }
 
         function copyLink(id) {
-            const url = window.location.href.replace('admin.html', 'index.html') + '?script=' + id;
+            const url = 'https://fisicaeciencia.org/tutor_socratico_ia/index.html?script=' + id;
             navigator.clipboard.writeText(url).then(() => {
                 alert('Link copiado para a área de transferência:\n' + url);
             }).catch(err => {
