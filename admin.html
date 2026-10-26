@@ -20,6 +20,12 @@
     <style>
         .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.05); }
         .hidden-section { display: none !important; }
+        @media print {
+            body { background: #0f172a !important; color: #e2e8f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            #topbar, #inst-nav-pills { display: none !important; }
+            #sec-instructions [data-inst-section] { display: block !important; break-inside: auto; }
+            pre { max-height: none !important; overflow: visible !important; white-space: pre-wrap !important; word-break: break-word !important; }
+        }
     </style>
 </head>
 <body class="bg-dark-900 text-slate-200 min-h-screen font-sans">
@@ -530,7 +536,7 @@
                                 <i class="fa-solid fa-copy mr-1"></i> Copiar Prompt
                             </button>
                         </div>
-                        <pre id="prompt-mestre-roteiro" class="text-xs text-slate-300 whitespace-pre-wrap font-mono leading-relaxed overflow-x-auto max-h-80">Atue como um Especialista em Design Instrucional e Pedagogia Socrática.
+                        <pre id="prompt-mestre-roteiro" class="text-xs text-slate-300 whitespace-pre-wrap break-words font-mono leading-relaxed">Atue como um Especialista em Design Instrucional e Pedagogia Socrática.
 Sua tarefa é analisar o material didático que fornecerei abaixo e criar um ROTEIRO DE APRENDIZAGEM PASSO A PASSO para ser usado no sistema "Tutor Socrático IA".
 
 COMO O SISTEMA FUNCIONA:
@@ -546,6 +552,25 @@ REGRAS PARA CRIAR O ROTEIRO:
    - "Levar o estudante a explicar por que..."
    - "Verificar se o aluno diferencia..."
 5. Especifique dentro de cada objetivo os conceitos-chave que o aluno precisa mencionar ou articular para ser aprovado naquela etapa.
+6. FORMATO DE ENTREGA (ARQUIVO .rot):
+   Além de apresentar o roteiro legível na conversa, gere ao final um bloco de código JSON (e, se sua plataforma permitir, disponibilize para download direto um arquivo com extensão ".rot", por exemplo "roteiro_tema.rot") seguindo EXATAMENTE esta estrutura JSON aceita pelo botão "Importar" do Tutor Socrático IA:
+
+{
+  "title": "Título da Atividade",
+  "subject": "Nome da Disciplina",
+  "attempts_limit": 3,
+  "initial_instructions": "Texto em Markdown com orientações iniciais e links de apoio para o aluno...",
+  "items": [
+    {
+      "sequence_order": 1,
+      "description": "O aluno deve descrever/identificar... (objetivo detalhado da etapa 1)"
+    },
+    {
+      "sequence_order": 2,
+      "description": "Associar/explicar... (objetivo detalhado da etapa 2)"
+    }
+  ]
+}
 
 MATERIAL BASE DA AULA:
 [COLE AQUI O TEXTO, RESUMO DO VÍDEO OU CONTEÚDO DA SUA AULA]</pre>
@@ -700,6 +725,41 @@ MATERIAL BASE DA AULA:
                                 Na tela inicial <em>Meus Roteiros</em>, clique no botão <strong><i class="fa-solid fa-upload"></i> Importar</strong> (ao lado de <em>+ Novo Roteiro</em>) e selecione um arquivo <code>.rot</code> do seu computador. Um novo roteiro será criado automaticamente com um novo código curto de acesso, pronto para receber sua turma de alunos.
                             </p>
                         </div>
+                    </div>
+
+                    <div class="mt-4 bg-dark-900 border border-slate-700 rounded-2xl p-4 sm:p-5">
+                        <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-800">
+                            <div>
+                                <span class="text-xs font-mono text-teal-400 font-semibold block"><i class="fa-solid fa-file-code mr-1.5"></i>ESPECIFICAÇÃO EXATA DO ARQUIVO .ROT (JSON)</span>
+                                <span class="text-xs text-slate-400">Um arquivo <code>.rot</code> é um arquivo de texto em formato JSON UTF-8. Você ou uma IA podem criar um arquivo de texto com essa estrutura, salvá-lo com a extensão <code>.rot</code> e importá-lo diretamente no painel:</span>
+                            </div>
+                            <button type="button" onclick="copyInstructionText('modelo-arquivo-rot', this)" class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0 ml-3">
+                                <i class="fa-solid fa-copy mr-1"></i> Copiar Modelo .rot
+                            </button>
+                        </div>
+                        <pre id="modelo-arquivo-rot" class="text-xs text-slate-300 whitespace-pre-wrap break-words font-mono leading-relaxed">{
+  "title": "Trebuchet",
+  "subject": "Física",
+  "attempts_limit": 3,
+  "initial_instructions": "Pesquise o que é um Trebuchet, suas partes e relação com conservação de energia.\nQuando estiver pronto, inicie o diálogo!",
+  "items": [
+    {
+      "sequence_order": 1,
+      "description": "O aluno deve descrever o trebuchet em suas partes (contrapeso, lançadeira ou funda, braço ou alavanca, projétil) e seus usos históricos."
+    },
+    {
+      "sequence_order": 2,
+      "description": "Associar energia potencial gravitacional ao erguimento do contrapeso numa extremidade da alavanca e a transformação de parte dessa energia em cinética no projétil."
+    },
+    {
+      "sequence_order": 3,
+      "description": "Explicar que a energia mecânica total do projétil será menor que a energia potencial gravitacional inicial do contrapeso, porque a eficiência energética não é 100%."
+    }
+  ]
+}</pre>
+                        <p class="text-xs text-slate-400 mt-3 border-t border-slate-800 pt-2">
+                            <i class="fa-solid fa-circle-info text-teal-400 mr-1"></i> <strong>Nota de compatibilidade:</strong> O importador aceita o campo <code>"items"</code> tanto como lista de objetos <code>{"sequence_order": 1, "description": "..."}</code> quanto como lista direta de textos <code>["Objetivo 1...", "Objetivo 2..."]</code>. O campo <code>"id"</code> é opcional (ao importar, o sistema gera automaticamente um novo ID curto exclusivo).
+                        </p>
                     </div>
                 </section>
             </div>
