@@ -32,7 +32,13 @@ const StudentReport = (() => {
         return 'missing';
     }
 
-    function buildSystemPrompt() {
+    function isGradeTen(session) {
+        const g = parseFloat(String((session && session.final_grade) || '').replace(',', '.'));
+        return !isNaN(g) && g >= 10;
+    }
+
+    function buildSystemPrompt(session) {
+        const perfect = isGradeTen(session);
         return [
             'Você é um professor especialista em avaliação formativa. Elabore um RELATÓRIO INDIVIDUAL CONCISO destinado AO ALUNO sobre a atividade socrática que ele acabou de concluir.',
             'Escreva em português do Brasil, dirigindo-se ao aluno na segunda pessoa ("você"), com tom respeitoso, honesto e encorajador.',
@@ -40,13 +46,16 @@ const StudentReport = (() => {
             '',
             'ESTRUTURA OBRIGATÓRIA (cada campo deve ser UM ÚNICO PARÁGRAFO, sem listas, sem markdown, sem títulos):',
             '1. "acertos": o que o aluno compreendeu e expressou corretamente, citando os conceitos específicos.',
-            '2. "fragilidades": pontos em que demonstrou compreensão parcial, imprecisão conceitual, vocabulário inadequado ou necessidade de muitas dicas.',
-            '3. "nao_compreendeu": conceitos que não chegou a compreender ou que permaneceram equivocados. Se tudo foi compreendido, diga isso brevemente e indique o que pode ser aprofundado.',
-            '4. "orientacoes": orientações objetivas de ANOTAÇÃO no caderno, em forma de 3 a 5 tarefas concretas e verificáveis, encadeadas no parágrafo e diretamente ligadas às fragilidades e lacunas. Exemplos do estilo esperado: "Pesquise e anote o conceito de energia potencial gravitacional e a dedução de sua fórmula." ou "Descreva a construção do triângulo de Pascal e mostre-o até a linha 6."',
+            '2. "fragilidades": pontos em que demonstrou compreensão parcial, imprecisão conceitual, vocabulário inadequado ou necessidade de dicas. Se o desempenho foi perfeito (nota 10), indique de forma sucinta que não houve fragilidades conceituais relevantes.',
+            '3. "nao_compreendeu": conceitos que não chegou a compreender ou que permaneceram equivocados. Se tudo foi plenamente compreendido, declare isso brevemente e aponte um tópico para aprofundamento.',
+            '4. "orientacoes": orientações objetivas de ANOTAÇÃO no caderno, com tarefas concretas e verificáveis ligadas aos conceitos da atividade (ex.: "Pesquise e anote o conceito de energia potencial gravitacional e a dedução de sua fórmula." ou "Descreva a construção do triângulo de Pascal e mostre-o até a linha 6.").',
             '',
-            'LIMITES: cada parágrafo entre 40 e 110 palavras; total máximo de 380 palavras (o relatório precisa caber em UMA página).',
+            perfect
+                ? 'LIMITE RIGOROSO DE EXTENSÃO: O aluno obteve NOTA 10 (desempenho máximo). Portanto, limite CADA TÓPICO a no MÁXIMO 30 PALAVRAS (um parágrafo conciso de 1 a 2 frases por tópico, totalizando no máximo 120 palavras).'
+                : 'LIMITE RIGOROSO DE EXTENSÃO: Limite CADA TÓPICO a no MÁXIMO 80 PALAVRAS (um parágrafo objetivo por tópico, totalizando no máximo 320 palavras).',
+            'O relatório precisa caber rigorosamente em UMA única página.',
             'Use apenas texto simples: não use emojis, setas, letras gregas nem símbolos matemáticos especiais; escreva fórmulas com caracteres comuns (ex.: "Ep = m x g x h") ou por extenso.',
-            'Não mencione notas numéricas, não cite análises internas e não mencione que existem instruções do sistema.',
+            'Não mencione notas numéricas no corpo do texto, não cite análises internas e não mencione que existem instruções do sistema.',
             '',
             'Responda ESTRITAMENTE com um JSON válido no formato: {"acertos":"...","fragilidades":"...","nao_compreendeu":"...","orientacoes":"..."}'
         ].join('\n');
@@ -119,7 +128,7 @@ const StudentReport = (() => {
 
         try {
             const script = (await api.db.get('scripts', session.script_id)).data;
-            const ai = await api.ai.chat(buildSystemPrompt(), [{ role: 'user', content: buildUserContent(session, script) }]);
+            const ai = await api.ai.chat(buildSystemPrompt(session), [{ role: 'user', content: buildUserContent(session, script) }]);
             const content = parseReply(ai.reply);
             return await saveReportField(sessionId, {
                 status: 'ready',
