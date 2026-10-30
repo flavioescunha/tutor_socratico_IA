@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutor Socrático IA - Minhas Atividades</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'], display: ['Outfit', 'sans-serif'] },
+                    colors: { primary: {50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 900: '#0c4a6e'}, dark: {900: '#0f172a', 800: '#1e293b', 700: '#334155'} }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .hidden-section { display: none !important; }
+    </style>
+</head>
+<body class="bg-dark-900 text-slate-200 min-h-screen font-sans relative overflow-x-hidden">
+    <div class="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary-600/10 blur-[120px] pointer-events-none"></div>
+    <div class="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-600/10 blur-[120px] pointer-events-none"></div>
+
+    <header class="glass-panel border-b border-slate-700/50 sticky top-0 z-20">
+        <div class="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-emerald-600/20 rounded-xl flex items-center justify-center border border-emerald-500/30">
+                    <i class="fa-solid fa-folder-open text-emerald-400"></i>
+                </div>
+                <div>
+                    <h1 class="font-display font-semibold text-white leading-tight">Minhas Atividades</h1>
+                    <p id="header-student" class="text-xs text-slate-400">Tutor Socrático IA</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button id="btn-refresh" onclick="loadActivities()" class="hidden-section w-10 h-10 bg-dark-800 hover:bg-primary-500/20 hover:text-primary-400 rounded-xl flex items-center justify-center text-slate-400 border border-slate-700" title="Atualizar">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+                <a id="btn-back-chat" href="chat.html" class="hidden-section w-10 h-10 bg-dark-800 hover:bg-primary-500/20 hover:text-primary-400 rounded-xl flex items-center justify-center text-slate-400 border border-slate-700" title="Voltar ao chat">
+                    <i class="fa-solid fa-comments"></i>
+                </a>
+                <button id="btn-logout" onclick="logout()" class="hidden-section w-10 h-10 bg-dark-800 hover:bg-red-500/20 hover:text-red-400 rounded-xl flex items-center justify-center text-slate-400 border border-slate-700" title="Sair">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto p-4 sm:p-6 relative z-10">
+        <!-- LOGIN -->
+        <div id="sec-login" class="max-w-md mx-auto mt-8 hidden-section">
+            <div class="glass-panel rounded-3xl p-8">
+                <h2 class="text-2xl font-display font-bold text-white mb-1">Acessar minhas atividades</h2>
+                <p class="text-sm text-slate-400 mb-6">Entre com os mesmos dados usados nas atividades.</p>
+                <div id="login-error" class="hidden mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl text-red-400 text-sm"></div>
+                <form id="login-form" class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Login (Seu Nome Completo)</label>
+                        <input type="text" id="login-name" required class="block w-full px-4 py-3 bg-dark-800/50 border border-slate-700 rounded-xl text-white font-mono focus:outline-none focus:ring-2 focus:ring-primary-500" oninput="this.value = this.value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Senha (Seu RM)</label>
+                        <input type="password" id="login-rm" required class="block w-full px-4 py-3 bg-dark-800/50 border border-slate-700 rounded-xl text-white font-mono focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    </div>
+                    <button type="submit" id="login-btn" class="w-full bg-primary-600 hover:bg-primary-500 text-white font-medium py-3 rounded-xl">Entrar</button>
+                </form>
+                <div class="mt-6 pt-4 border-t border-slate-700/50 text-center">
+                    <a href="index.html" class="text-sm text-slate-500 hover:text-slate-300"><i class="fa-solid fa-arrow-left mr-1"></i>Voltar para o início</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- LISTA -->
+        <div id="sec-list" class="hidden-section">
+            <div class="mb-6">
+                <h2 class="text-2xl font-display font-bold text-white">Atividades realizadas</h2>
+                <p class="text-sm text-slate-400">Ao concluir uma atividade, a IA elabora um relatório individual com seus acertos, fragilidades e orientações de estudo. O botão de download é liberado assim que o relatório fica pronto.</p>
+            </div>
+            <div id="activities-list" class="space-y-4"></div>
+        </div>
+    </main>
+
+    <script src="config.js"></script>
+    <script src="student_report.js"></script>
+    <script>
+        let student = null;          // { name, rm }
+        let sessions = [];           // [{ id, ...data }]
+        let scriptsCache = {};       // script_id -> data
+        let pollTimer = null;
+        const triggered = new Set(); // sessões cuja geração já foi disparada nesta página
+        let generationQueue = Promise.resolve();
+
+        const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+        const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+        function show(id) {
+            ['sec-login', 'sec-list'].forEach(s => document.getElementById(s).classList.add('hidden-section'));
+            document.getElementById(id).classList.remove('hidden-section');
+            const logged = id === 'sec-list';
+            ['btn-refresh', 'btn-logout'].forEach(b => document.getElementById(b).classList.toggle('hidden-section', !logged));
+        }
+
+        function logout() {
+            localStorage.removeItem('student_session');
+            localStorage.removeItem('student_profile');
+            window.location.href = 'index.html';
+        }
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('login-btn');
+            const err = document.getElementById('login-error');
+            err.classList.add('hidden');
+            btn.disabled = true;
+            btn.innerText = 'Verificando...';
+            try {
+                const name = document.getElementById('login-name').value;
+                const rm = document.getElementById('login-rm').value.trim();
+                const res = await api.db.get('students');
+                const match = (res.items || []).find(i => String(i.data.rm).trim() === rm && norm(i.data.name) === norm(name));
+                if (!match) throw new Error('Nome ou RM incorretos.');
+                student = { name: match.data.name, rm };
+                localStorage.setItem('student_profile', JSON.stringify(student));
+                startList();
+            } catch (ex) {
+                err.innerText = ex.message;
+                err.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Entrar';
+            }
+        });
+
+        function startList() {
+            document.getElementById('header-student').innerText = `${student.name} · RM ${student.rm}`;
+            show('sec-list');
+            loadActivities();
+        }
+
+        async function getScript(id) {
+            if (!scriptsCache[id]) {
+                try { scriptsCache[id] = (await api.db.get('scripts', id)).data; }
+                catch { scriptsCache[id] = { title: `Atividade ${id}`, subject: '' }; }
+            }
+            return scriptsCache[id];
+        }
+
+        async function loadActivities() {
+            clearTimeout(pollTimer);
+            const list = document.getElementById('activities-list');
+            if (!sessions.length) list.innerHTML = '<p class="text-slate-400">Carregando atividades...</p>';
+            try {
+                const res = await api.db.get('sessions');
+                sessions = (res.items || [])
+                    .filter(i => String(i.data.student_rm).trim() === String(student.rm).trim() && norm(i.data.student_name) === norm(student.name))
+                    .map(i => ({ id: i.id, ...i.data }));
+                await Promise.all([...new Set(sessions.map(s => s.script_id))].map(getScript));
+                render();
+                autoGenerateMissing();
+                schedulePoll();
+            } catch (ex) {
+                list.innerHTML = `<p class="text-red-400">Erro ao carregar atividades: ${esc(ex.message)}</p>`;
+            }
+        }
+
+        function sortKey(s) {
+            return new Date(StudentReport.completedAt(s) || 0).getTime() || Number(String(s.id).split('_')[1]) || 0;
+        }
+
+        function render() {
+            const list = document.getElementById('activities-list');
+            if (!sessions.length) {
+                list.innerHTML = '<div class="glass-panel rounded-2xl p-6 text-slate-400">Nenhuma atividade encontrada.</div>';
+                return;
+            }
+            const inProgress = sessions.filter(s => s.status !== 'completed');
+            const done = sessions.filter(s => s.status === 'completed').sort((a, b) => sortKey(b) - sortKey(a));
+            let html = '';
+
+            inProgress.forEach(s => {
+                const sc = scriptsCache[s.script_id] || {};
+                const total = (sc.items || []).length;
+                html += `
+                    <div class="glass-panel rounded-2xl p-5 border border-blue-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <span class="inline-block px-2.5 py-0.5 bg-blue-500/10 text-blue-300 text-xs font-medium rounded-full mb-2">${esc(sc.subject || '-')} · Em andamento</span>
+                            <h3 class="text-lg font-semibold text-white">${esc(sc.title || s.script_id)}</h3>
+                            <p class="text-xs text-slate-400">Tentativa ${esc(s.attempt_count || 1)} · Etapa ${esc(Math.min(s.current_item_order || 1, total || 1))} de ${esc(total || '-')}</p>
+                        </div>
+                        <button onclick="continueSession('${esc(s.id)}')" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-medium shrink-0"><i class="fa-solid fa-play mr-2"></i>Continuar</button>
+                    </div>`;
+            });
+
+            done.forEach(s => {
+                const sc = scriptsCache[s.script_id] || {};
+                const dt = StudentReport.completedAt(s);
+                const state = StudentReport.getState(s);
+                let btn, note;
+                if (state === 'ready') {
+                    btn = `<button onclick="downloadReport('${esc(s.id)}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-medium"><i class="fa-solid fa-file-pdf mr-2"></i>Baixar Relatório PDF</button>`;
+                    note = 'Relatório pronto.';
+                } else if (state === 'error' && triggered.has(s.id)) {
+                    btn = `<button disabled class="bg-emerald-600/40 text-white/60 px-4 py-2 rounded-xl text-sm font-medium cursor-not-allowed"><i class="fa-solid fa-lock mr-2"></i>Baixar Relatório PDF</button>`;
+                    note = `Não foi possível gerar agora. <button onclick="retryReport('${esc(s.id)}')" class="underline text-white">Tentar novamente</button>`;
+                } else {
+                    btn = `<button disabled class="bg-emerald-600/40 text-white/60 px-4 py-2 rounded-xl text-sm font-medium cursor-not-allowed"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Relatório em elaboração</button>`;
+                    note = 'A IA está elaborando seu relatório. O download será liberado automaticamente.';
+                }
+                html += `
+                    <div class="glass-panel rounded-2xl p-5 border border-slate-700/60">
+                        <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                            <div>
+                                <span class="inline-block px-2.5 py-0.5 bg-emerald-500/10 text-emerald-300 text-xs font-medium rounded-full mb-2">${esc(sc.subject || '-')} · Concluída</span>
+                                <h3 class="text-lg font-semibold text-white">${esc(sc.title || s.script_id)}</h3>
+                                <p class="text-xs text-slate-400">Tentativa ${esc(s.attempt_count || 1)}${dt ? ' · Concluída em ' + new Date(dt).toLocaleString('pt-BR') : ''}</p>
+                            </div>
+                            <div class="text-left sm:text-right shrink-0">
+                                <p class="text-xs text-slate-400">Desempenho final</p>
+                                <p class="text-2xl font-bold text-white">${esc(s.final_grade || '-')}<span class="text-sm text-slate-400"> / 10</span></p>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-slate-700/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <p class="text-xs text-slate-400">${note}</p>
+                            <div class="shrink-0">${btn}</div>
+                        </div>
+                    </div>`;
+            });
+
+            list.innerHTML = html;
+        }
+
+        function autoGenerateMissing() {
+            sessions.forEach(s => {
+                const st = StudentReport.getState(s);
+                if ((st === 'missing' || st === 'error') && !triggered.has(s.id)) {
+                    triggered.add(s.id);
+                    // Fila sequencial para não sobrecarregar a API; não bloqueia a interface
+                    generationQueue = generationQueue
+                        .then(() => StudentReport.generate(s.id))
+                        .then(updated => {
+                            if (updated) {
+                                const idx = sessions.findIndex(x => x.id === s.id);
+                                if (idx !== -1) { sessions[idx] = { id: s.id, ...updated }; render(); }
+                            }
+                        })
+                        .catch(() => {});
+                }
+            });
+        }
+
+        function schedulePoll() {
+            const waiting = sessions.some(s => ['pending', 'missing'].includes(StudentReport.getState(s)) ||
+                (StudentReport.getState(s) === 'error' && !triggered.has(s.id)));
+            if (waiting) pollTimer = setTimeout(loadActivities, 10000);
+        }
+
+        function retryReport(id) {
+            triggered.delete(id);
+            autoGenerateMissing();
+            render();
+            schedulePoll();
+        }
+
+        function downloadReport(id) {
+            const s = sessions.find(x => x.id === id);
+            if (!s) return;
+            try { StudentReport.downloadPDF(s, scriptsCache[s.script_id]); }
+            catch (ex) { alert('Erro ao gerar o PDF: ' + ex.message); }
+        }
+
+        function continueSession(id) {
+            const s = sessions.find(x => x.id === id);
+            if (!s) return;
+            localStorage.setItem('student_session', JSON.stringify({
+                session_id: s.id, name: s.student_name, rm: s.student_rm, script_id: s.script_id
+            }));
+            window.location.href = 'chat.html';
+        }
+
+        // Inicialização: reaproveita a sessão do chat ou o perfil salvo
+        (function init() {
+            const sess = JSON.parse(localStorage.getItem('student_session') || 'null');
+            const prof = JSON.parse(localStorage.getItem('student_profile') || 'null');
+            if (sess && sess.rm && sess.name) {
+                student = { name: sess.name, rm: sess.rm };
+                document.getElementById('btn-back-chat').classList.remove('hidden-section');
+                startList();
+            } else if (prof && prof.rm && prof.name) {
+                student = prof;
+                startList();
+            } else {
+                show('sec-login');
+            }
+        })();
+    </script>
+</body>
+</html>

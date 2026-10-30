@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -64,6 +65,9 @@
                         <p id="student-name" class="text-sm font-medium text-white"></p>
                         <p class="text-xs text-slate-400">Aluno</p>
                     </div>
+                    <a href="atividades.html" class="w-10 h-10 bg-dark-800 hover:bg-emerald-500/20 hover:text-emerald-400 rounded-xl flex items-center justify-center text-slate-400 transition-colors border border-slate-700 hover:border-emerald-500/30" title="Minhas Atividades Realizadas">
+                        <i class="fa-solid fa-folder-open"></i>
+                    </a>
                     <button onclick="restartAttempt()" class="w-10 h-10 bg-dark-800 hover:bg-primary-500/20 hover:text-primary-400 rounded-xl flex items-center justify-center text-slate-400 transition-colors border border-slate-700 hover:border-primary-500/30" title="Iniciar Nova Tentativa">
                         <i class="fa-solid fa-rotate-right"></i>
                     </button>
@@ -149,13 +153,22 @@
             </div>
         </div>
 
-        <div id="completion-banner" class="hidden p-4 bg-green-500/20 border-t border-green-500/30 text-center">
+        <div id="completion-banner" class="hidden p-4 bg-green-500/20 border-t border-green-500/30 text-center max-h-[60vh] overflow-y-auto">
             <h3 class="text-green-400 font-semibold mb-1"><i class="fa-solid fa-check-circle mr-2"></i>Atividade Concluída!</h3>
             <p class="text-sm text-green-200/70">Você finalizou todos os objetivos deste roteiro. Pode fechar esta aba.</p>
             <p id="final-grade-display" class="mt-2 text-lg font-bold text-white hidden">Desempenho Final: <span id="final-grade-value" class="text-green-400"></span> / 10</p>
             <div id="step-performances-container" class="mt-4 text-left hidden space-y-3">
                 <h4 class="text-md font-semibold text-white mb-2 border-b border-slate-700 pb-1">Desempenho por Etapa:</h4>
                 <div id="step-performances-list"></div>
+            </div>
+
+            <!-- Relatório individual gerado pela IA -->
+            <div id="student-report-box" class="mt-5 hidden">
+                <button id="btn-student-report" onclick="downloadMyReport()" disabled class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-6 rounded-xl transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-emerald-600">
+                    <i class="fa-solid fa-file-pdf mr-2"></i>Baixar Relatório PDF
+                </button>
+                <p id="student-report-status" class="text-xs text-green-200/70 mt-2"></p>
+                <a href="atividades.html" class="inline-block text-xs text-slate-300 hover:text-white underline mt-1"><i class="fa-solid fa-folder-open mr-1"></i>Ver minhas atividades realizadas</a>
             </div>
             
             <div id="restart-attempt-container" class="mt-6 hidden">
@@ -184,6 +197,7 @@
     </main>
 
     <script src="config.js"></script>
+    <script src="student_report.js"></script>
     <script>
         const sessionData = JSON.parse(localStorage.getItem('student_session'));
         if (!sessionData) {
@@ -386,6 +400,7 @@
                     
                     if (session.current_item_order > script.items.length) {
                         session.status = 'completed';
+                        session.completed_at = new Date().toISOString();
                         // Calcular nota final
                         let soma = 0;
                         session.logs.forEach(l => {
@@ -476,6 +491,7 @@
                     if (data.step_performances) {
                         renderStepPerformances(data.step_performances);
                     }
+                    refreshReportUI(true);
                     
                     const attemptsLeft = (data.script && data.script.attempts_limit) ? (data.script.attempts_limit - data.attempt_count) : 0;
                     if (attemptsLeft > 0) {
@@ -533,6 +549,9 @@
                         renderStepPerformances(data.step_performances);
                     }
                     
+                    // Relatório individual por IA: disparado em segundo plano (não bloqueia a conclusão)
+                    refreshReportUI(true);
+
                     // Envia os resultados para o novo servidor backend Python
                     await sendFinalReportToBackend(data);
                 }
@@ -579,6 +598,72 @@
             } catch (error) {
                 console.error("Erro ao enviar relatório:", error);
                 alert("Atenção: O servidor da escola parece estar offline. Por favor, avise o seu professor que você terminou a atividade.");
+            }
+        }
+
+        // ===== Relatório individual do aluno (IA) =====
+        let reportPollTimer = null;
+        let reportGenerationTriggered = false;
+        let reportSessionCache = null;
+        let reportScriptCache = null;
+
+        async function refreshReportUI(allowTrigger) {
+            const box = document.getElementById('student-report-box');
+            const btn = document.getElementById('btn-student-report');
+            const status = document.getElementById('student-report-status');
+            box.classList.remove('hidden');
+            clearTimeout(reportPollTimer);
+
+            let session;
+            try {
+                session = (await api.db.get('sessions', sessionData.session_id)).data;
+            } catch (e) {
+                status.innerText = 'Não foi possível verificar o relatório agora. Tentando novamente...';
+                reportPollTimer = setTimeout(() => refreshReportUI(allowTrigger), 10000);
+                return;
+            }
+            reportSessionCache = session;
+            const state = StudentReport.getState(session);
+
+            if (state === 'ready') {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-file-pdf mr-2"></i>Baixar Relatório PDF';
+                status.innerText = 'Seu relatório individual está pronto.';
+                return;
+            }
+
+            btn.disabled = true;
+            if ((state === 'missing' || state === 'error') && allowTrigger && !reportGenerationTriggered) {
+                reportGenerationTriggered = true;
+                // Não aguardado: roda em segundo plano
+                StudentReport.generate(sessionData.session_id).then(() => refreshReportUI(false)).catch(() => refreshReportUI(false));
+            }
+
+            if (state === 'error' && reportGenerationTriggered) {
+                btn.innerHTML = '<i class="fa-solid fa-file-pdf mr-2"></i>Baixar Relatório PDF';
+                status.innerHTML = 'Não foi possível gerar o relatório agora. <button onclick="retryMyReport()" class="underline text-white">Tentar novamente</button>';
+                return;
+            }
+
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Relatório em elaboração...';
+            status.innerText = 'A IA está elaborando seu relatório individual. O botão será liberado automaticamente.';
+            reportPollTimer = setTimeout(() => refreshReportUI(allowTrigger), 8000);
+        }
+
+        function retryMyReport() {
+            reportGenerationTriggered = false;
+            refreshReportUI(true);
+        }
+
+        async function downloadMyReport() {
+            try {
+                if (!reportSessionCache || StudentReport.getState(reportSessionCache) !== 'ready') return;
+                if (!reportScriptCache) {
+                    reportScriptCache = (await api.db.get('scripts', reportSessionCache.script_id)).data;
+                }
+                StudentReport.downloadPDF(reportSessionCache, reportScriptCache);
+            } catch (e) {
+                alert('Erro ao gerar o PDF: ' + e.message);
             }
         }
 

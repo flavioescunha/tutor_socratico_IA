@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -700,6 +701,18 @@ MATERIAL BASE DA AULA:
                             Clique no botão verde <strong><i class="fa-solid fa-download"></i> Baixar CSV</strong> para gerar instantaneamente uma planilha compatível com o Microsoft Excel (codificação UTF-8 com separador ponto-e-vírgula) contendo Nome, RM, Roteiro, Status, Tentativas e Nota Final.
                         </div>
                     </div>
+
+                    <div class="bg-emerald-950/30 border border-emerald-500/30 rounded-2xl p-5 text-xs sm:text-sm text-slate-300 leading-relaxed">
+                        <h4 class="font-bold text-emerald-300 mb-2"><i class="fa-solid fa-file-pdf mr-1.5"></i>Relatório Individual para o Aluno (gerado por IA)</h4>
+                        <p class="mb-2">
+                            Assim que o aluno conclui a atividade, a IA elabora <strong>em segundo plano</strong> (sem atrasar a tela de conclusão) um relatório conciso de no máximo <strong>1 página</strong>, com um parágrafo para cada tópico: <strong>o que acertou</strong>, <strong>onde demonstrou fragilidade</strong>, <strong>o que não compreendeu</strong> e <strong>orientações objetivas de anotação no caderno</strong> (ex.: <em>"Pesquise e anote o conceito de energia potencial gravitacional e a dedução de sua fórmula"</em>).
+                        </p>
+                        <ul class="list-disc list-inside space-y-1 text-xs text-slate-400">
+                            <li><strong>Na tabela de Relatórios:</strong> o botão <strong>PDF Aluno</strong> baixa o relatório pronto; <strong>Gerar relatório</strong> aparece para sessões concluídas antes deste recurso ou cuja geração falhou.</li>
+                            <li><strong>Em "Ver Detalhes":</strong> o professor lê o relatório na tela, baixa com <strong>Baixar Relatório PDF para aluno</strong> ou pede uma nova versão com <strong>Regenerar</strong>.</li>
+                            <li><strong>Para o aluno:</strong> o botão <strong>Baixar Relatório PDF</strong> aparece na tela de conclusão e em <strong>Minhas Atividades</strong> (ícone <i class="fa-solid fa-folder-open"></i> no chat ou link na tela de login), ficando bloqueado até a IA entregar o relatório.</li>
+                        </ul>
+                    </div>
                 </section>
 
                 <!-- MÓDULO 8: PORTABILIDADE (.ROT) E BACKUP -->
@@ -768,6 +781,7 @@ MATERIAL BASE DA AULA:
     </main>
 
     <script src="config.js"></script>
+    <script src="student_report.js"></script>
     <script>
         
         // Compatibility wrapper para consumir a nova API genérica
@@ -1347,15 +1361,17 @@ MATERIAL BASE DA AULA:
                 const statusClass = r.status === 'completed' ? 'text-green-400 bg-green-400/10' : 'text-blue-400 bg-blue-400/10';
                 const statusText = r.status === 'completed' ? 'Concluído' : 'Em andamento';
                 const finalGrade = r.final_grade ? parseFloat(r.final_grade).toFixed(1) : '-';
+                const repBtn = reportActionHtml(r);
                 
                 container.innerHTML += `
                     <tr class="hover:bg-dark-800/30 transition-colors">
                         <td class="p-4 text-white font-medium">${r.student_name}</td>
                         <td class="p-4 text-slate-400 font-mono text-sm">${r.student_rm}</td>
                         <td class="p-4 text-slate-300 text-sm">${scriptName}</td>
-                        <td class="p-4"><span class="px-2 py-1 rounded text-xs font-medium ${statusClass}">${statusText} (Etapa ${r.current_step})</span></td>
+                        <td class="p-4"><span class="px-2 py-1 rounded text-xs font-medium ${statusClass}">${statusText} (Etapa ${r.current_item_order ?? r.current_step ?? '-'})</span></td>
                         <td class="p-4 text-white font-bold">${finalGrade}</td>
-                        <td class="p-4 text-right">
+                        <td class="p-4 text-right whitespace-nowrap">
+                            ${repBtn}
                             <button onclick="viewReport('${r.session_id}')" class="text-indigo-400 hover:text-indigo-300 text-sm font-medium">Ver Detalhes</button>
                         </td>
                     </tr>
@@ -1420,7 +1436,91 @@ MATERIAL BASE DA AULA:
             document.body.removeChild(link);
         }
         
+        // ===== Relatório individual do aluno (IA) =====
+        const escHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        let openReportSessionId = null;
+
+        function reportActionHtml(r) {
+            const st = StudentReport.getState(r);
+            if (st === 'ready') {
+                return `<button onclick="adminDownloadReport('${r.session_id}')" class="text-emerald-400 hover:text-emerald-300 text-sm font-medium mr-3" title="Baixar Relatório PDF para aluno"><i class="fa-solid fa-file-pdf mr-1"></i>PDF Aluno</button>`;
+            }
+            if (st === 'pending') {
+                return `<span class="text-amber-400 text-xs mr-3"><i class="fa-solid fa-circle-notch fa-spin mr-1"></i>Gerando relatório</span>`;
+            }
+            if (st === 'missing' || st === 'error') {
+                return `<button onclick="adminGenerateReport('${r.session_id}', this, false)" class="text-amber-400 hover:text-amber-300 text-sm font-medium mr-3" title="${st === 'error' ? 'A última tentativa falhou' : 'Elaborar relatório conciso para o aluno via IA'}"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>${st === 'error' ? 'Tentar gerar' : 'Gerar relatório'}</button>`;
+            }
+            return '';
+        }
+
+        function studentReportDetailsHtml(r) {
+            const st = StudentReport.getState(r);
+            let body = '';
+            if (st === 'na') {
+                body = `<p class="text-sm text-slate-400">O relatório para o aluno é elaborado automaticamente pela IA quando a atividade é concluída.</p>`;
+            } else if (st === 'pending') {
+                body = `<p class="text-sm text-amber-400"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i>A IA está elaborando o relatório. Atualize em instantes.</p>`;
+            } else if (st === 'missing' || st === 'error') {
+                body = `
+                    <p class="text-sm text-slate-400 mb-3">${st === 'error' ? 'A última tentativa de geração falhou' + (r.student_report.error ? ': <span class="text-red-400">' + escHtml(r.student_report.error) + '</span>' : '.') : 'Relatório ainda não elaborado.'}</p>
+                    <button onclick="adminGenerateReport('${r.session_id}', this, false)" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-medium"><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Elaborar relatório com IA</button>`;
+            } else {
+                const c = r.student_report.content;
+                const block = (title, color, text) => `
+                    <div class="border-l-4 ${color} pl-3">
+                        <p class="text-sm font-semibold text-white mb-1">${title}</p>
+                        <p class="text-sm text-slate-300 leading-relaxed">${escHtml(text)}</p>
+                    </div>`;
+                body = `
+                    <div class="space-y-4 mb-4">
+                        ${block('1. O que acertou', 'border-emerald-500', c.acertos)}
+                        ${block('2. Onde demonstrou fragilidade', 'border-amber-500', c.fragilidades)}
+                        ${block('3. O que não compreendeu', 'border-red-500', c.nao_compreendeu)}
+                        ${block('4. Orientações de estudo e anotações', 'border-indigo-500', c.orientacoes)}
+                    </div>
+                    <div class="flex flex-wrap gap-2 items-center">
+                        <button onclick="adminDownloadReport('${r.session_id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium"><i class="fa-solid fa-file-pdf mr-2"></i>Baixar Relatório PDF para aluno</button>
+                        <button onclick="if(confirm('Gerar um novo relatório substituindo o atual?')) adminGenerateReport('${r.session_id}', this, true)" class="bg-dark-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-4 py-2 rounded-lg text-sm font-medium"><i class="fa-solid fa-rotate mr-2"></i>Regenerar</button>
+                        <span class="text-xs text-slate-500">Gerado em ${new Date(r.student_report.generated_at).toLocaleString('pt-BR')}</span>
+                    </div>`;
+            }
+            return `
+                <h5 class="text-lg font-semibold text-white mb-4 border-b border-slate-700 pb-2"><i class="fa-solid fa-file-lines text-emerald-400 mr-2"></i>Relatório para o Aluno (IA)</h5>
+                <div class="bg-dark-800 rounded-xl p-4 border border-slate-700 mb-8">${body}</div>`;
+        }
+
+        async function adminGenerateReport(sessionId, btn, force) {
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i>Gerando...';
+            }
+            try {
+                const updated = await StudentReport.generate(sessionId, { force: !!force });
+                const idx = globalReports.findIndex(x => x.session_id === sessionId);
+                if (idx !== -1 && updated) globalReports[idx] = { session_id: sessionId, ...updated };
+                if (updated && StudentReport.getState(updated) === 'error') {
+                    alert('Não foi possível gerar o relatório: ' + (updated.student_report.error || 'erro desconhecido'));
+                }
+            } catch (e) {
+                alert('Erro ao gerar relatório: ' + e.message);
+            }
+            renderReports();
+            if (openReportSessionId === sessionId && !document.getElementById('report-modal').classList.contains('hidden-section')) {
+                viewReport(sessionId);
+            }
+        }
+
+        function adminDownloadReport(sessionId) {
+            const r = globalReports.find(x => x.session_id === sessionId);
+            if (!r) return;
+            const sObj = globalScripts.find(s => s.id.toString() === r.script_id.toString());
+            try { StudentReport.downloadPDF(r, sObj); }
+            catch (e) { alert('Erro ao gerar o PDF: ' + e.message); }
+        }
+
         function viewReport(sessionId) {
+            openReportSessionId = sessionId;
             const idx = globalReports.findIndex(r => r.session_id === sessionId);
             if (idx !== -1) showReportDetails(idx);
         }
@@ -1435,6 +1535,8 @@ MATERIAL BASE DA AULA:
                     <p class="text-sm text-slate-400">Roteiro: <span class="text-white">${r.script_id}</span> | Status: <span class="text-white">${r.status}</span> | Nota Final: <span class="text-white font-bold">${r.final_grade || '-'}</span></p>
                 </div>
                 
+                ${studentReportDetailsHtml(r)}
+
                 <h5 class="text-lg font-semibold text-white mb-4 border-b border-slate-700 pb-2">Logs de Etapas (Análise da IA)</h5>
                 <div class="space-y-4 mb-8">
             `;
