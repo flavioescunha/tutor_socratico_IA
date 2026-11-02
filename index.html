@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tutor Socrático IA - Aluno</title>
+    <title>Tutor Socrático IA - Portal do Estudante</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -19,209 +20,726 @@
     </script>
     <style>
         .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        .fade-in-up { animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(20px); }
+        .fade-in-up { animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(15px); }
         @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
-        /* Bloqueio visual de seleção de texto (opcional) */
-        .no-select {
-            -webkit-user-select: none; /* Safari */
-            -ms-user-select: none; /* IE 10 and IE 11 */
-            user-select: none; /* Standard syntax */
-        }
+        .hidden-section { display: none !important; }
     </style>
 </head>
-<body class="bg-dark-900 text-slate-200 min-h-screen font-sans flex flex-col relative overflow-x-hidden no-select" oncontextmenu="return false;">
-    <div class="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary-600/20 blur-[120px] pointer-events-none"></div>
-    <div class="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-600/20 blur-[120px] pointer-events-none"></div>
-    
-    <div class="min-h-screen flex items-center justify-center p-4 z-10">
+<body class="bg-dark-900 text-slate-200 min-h-screen font-sans relative overflow-x-hidden flex flex-col">
+    <!-- Efeitos de iluminação de fundo -->
+    <div class="fixed top-[-10%] left-[-10%] w-[45%] h-[45%] rounded-full bg-primary-600/15 blur-[130px] pointer-events-none"></div>
+    <div class="fixed bottom-[-10%] right-[-10%] w-[45%] h-[45%] rounded-full bg-indigo-600/15 blur-[130px] pointer-events-none"></div>
+
+    <!-- SEÇÃO 1: LOGIN DO ESTUDANTE (Nome + RM) -->
+    <div id="sec-login" class="min-h-screen flex items-center justify-center p-4 z-10">
         <div class="w-full max-w-md">
             <div class="text-center mb-8 fade-in-up">
-                <div class="w-20 h-20 bg-primary-600 rounded-3xl mx-auto flex items-center justify-center mb-6 shadow-xl shadow-primary-500/30">
+                <div class="w-20 h-20 bg-gradient-to-br from-primary-500 to-indigo-600 rounded-3xl mx-auto flex items-center justify-center mb-5 shadow-xl shadow-primary-500/25">
                     <i class="fa-solid fa-graduation-cap text-4xl text-white"></i>
                 </div>
-                <h1 class="text-4xl font-display font-bold text-white mb-3">Tutor Socrático IA</h1>
-                <p class="text-lg text-slate-400">Entre para iniciar sua atividade</p>
+                <h1 class="text-3xl sm:text-4xl font-display font-bold text-white mb-2">Tutor Socrático IA</h1>
+                <p class="text-slate-400 text-sm sm:text-base">Portal de Aprendizagem do Estudante</p>
             </div>
 
-            <div class="glass-panel rounded-3xl p-8 fade-in-up" style="animation-delay: 0.1s;">
-                <div id="error-alert" class="hidden mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-center text-red-400 text-sm">
-                    <i class="fa-solid fa-circle-exclamation mr-3 text-lg"></i>
-                    <span id="error-text"></span>
+            <div class="glass-panel rounded-3xl p-7 sm:p-8 fade-in-up" style="animation-delay: 0.1s;">
+                <div id="login-error" class="hidden mb-5 p-4 bg-red-500/15 border border-red-500/40 rounded-2xl flex items-start text-red-300 text-sm">
+                    <i class="fa-solid fa-circle-exclamation mr-3 mt-0.5 text-base text-red-400 shrink-0"></i>
+                    <span id="login-error-text"></span>
                 </div>
 
-                <form id="login-form" class="space-y-5">
+                <form id="form-login" class="space-y-5">
                     <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-2">ID do Roteiro (Fornecido pelo Professor)</label>
-                        <input type="text" id="script_id" required class="block w-full px-4 py-3 bg-dark-800/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all font-mono">
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
+                            <i class="fa-solid fa-user mr-1.5 text-primary-400"></i>Seu Nome Completo (Login)
+                        </label>
+                        <input type="text" id="login-name" required placeholder="Digite seu nome completo..." 
+                            class="block w-full px-4 py-3.5 bg-dark-800/70 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all font-medium text-sm"
+                            oninput="this.value = this.value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-2">Login (Seu Nome Completo)</label>
-                        <input type="text" id="name" required class="block w-full px-4 py-3 bg-dark-800/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all font-mono" oninput="this.value = this.value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-2">Senha (Seu RM)</label>
-                        <input type="password" id="rm" required class="block w-full px-4 py-3 bg-dark-800/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all font-mono">
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
+                            <i class="fa-solid fa-id-card mr-1.5 text-primary-400"></i>Seu RM / RA (Senha)
+                        </label>
+                        <input type="password" id="login-rm" required placeholder="Digite o número do seu RM..." 
+                            class="block w-full px-4 py-3.5 bg-dark-800/70 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all font-mono text-sm">
                     </div>
                     
-                    <button type="submit" id="submit-btn" class="w-full bg-primary-600 hover:bg-primary-500 text-white font-medium py-4 rounded-xl shadow-lg shadow-primary-600/20 transition-all active:scale-[0.98] mt-4 flex justify-center items-center">
-                        <span id="btn-text">Começar Atividade</span>
-                        <i id="btn-icon" class="fa-solid fa-arrow-right ml-2"></i>
-                        <i id="btn-loader" class="fa-solid fa-spinner fa-spin ml-2 hidden"></i>
+                    <button type="submit" id="btn-login-submit" class="w-full bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white font-semibold py-4 rounded-xl shadow-lg shadow-indigo-600/25 transition-all active:scale-[0.98] mt-2 flex justify-center items-center text-base">
+                        <span id="btn-login-text">Acessar Minhas Atividades</span>
+                        <i id="btn-login-icon" class="fa-solid fa-arrow-right ml-2.5"></i>
+                        <i id="btn-login-loader" class="fa-solid fa-spinner fa-spin ml-2.5 hidden"></i>
                     </button>
                 </form>
-                
-                <div class="mt-8 pt-6 border-t border-slate-700/50 text-center">
-                    <a href="atividades.html" class="block text-sm text-emerald-400 hover:text-emerald-300 transition-colors mb-3"><i class="fa-solid fa-folder-open mr-1"></i> Minhas atividades realizadas e relatórios</a>
-                    <a href="admin.html" class="text-sm text-slate-500 hover:text-slate-300 transition-colors"><i class="fa-solid fa-chalkboard-user mr-1"></i> Acesso do Professor</a>
+
+                <div class="mt-6 pt-5 border-t border-slate-700/50 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-2">
+                    <span class="flex items-center"><i class="fa-solid fa-shield-halved mr-1.5 text-slate-500"></i>Acesso individual protegido</span>
+                    <a href="admin.html" class="text-slate-400 hover:text-primary-300 transition-colors font-medium">
+                        <i class="fa-solid fa-chalkboard-user mr-1"></i> Painel do Professor
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- SEÇÃO 2: DASHBOARD DO ESTUDANTE (Minhas Atribuições) -->
+    <div id="sec-dashboard" class="min-h-screen flex flex-col z-10 hidden-section">
+        <!-- Topbar do Estudante -->
+        <header class="glass-panel border-b border-slate-700/50 sticky top-0 z-30">
+            <div class="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-primary-500/20">
+                        <i class="fa-solid fa-graduation-cap text-lg"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-sm sm:text-base font-bold text-white leading-tight flex items-center gap-1.5">
+                            <span>Olá, <span id="dash-student-name">Estudante</span></span>
+                        </h2>
+                        <p class="text-xs text-slate-400 font-mono">RM: <span id="dash-student-rm" class="text-primary-400">---</span></p>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <button onclick="loadStudentAssignments()" title="Atualizar lista de atividades" class="w-10 h-10 rounded-xl bg-dark-800 hover:bg-slate-700 border border-slate-700 text-slate-300 flex items-center justify-center transition-colors">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+                    <button onclick="logoutStudent()" title="Sair / Trocar de aluno" class="px-3 sm:px-4 h-10 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-300 text-xs sm:text-sm font-medium flex items-center transition-colors">
+                        <i class="fa-solid fa-right-from-bracket sm:mr-1.5"></i>
+                        <span class="hidden sm:inline">Sair</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Conteúdo Principal do Dashboard -->
+        <main class="max-w-5xl w-full mx-auto p-4 sm:p-6 flex-grow">
+            <!-- Boas-vindas e Resumo -->
+            <div class="glass-panel rounded-3xl p-6 sm:p-8 mb-6 border border-slate-700/60 bg-gradient-to-br from-dark-800/80 via-dark-800/40 to-dark-900">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-primary-500/15 text-primary-300 border border-primary-500/30 mb-2">
+                            <i class="fa-solid fa-list-check mr-1.5"></i> Suas Atribuições
+                        </span>
+                        <h1 class="text-2xl sm:text-3xl font-display font-bold text-white mb-1">Minhas Atividades</h1>
+                        <p class="text-slate-300 text-sm max-w-2xl leading-relaxed">
+                            Aqui estão todas as atividades designadas para você pelos professores. Escolha uma para iniciar ou retomar seu diálogo socrático.
+                        </p>
+                    </div>
+
+                    <!-- Pílulas de Contagem -->
+                    <div class="flex flex-wrap sm:flex-nowrap gap-2 shrink-0">
+                        <div class="bg-dark-900/80 border border-slate-700/80 px-3.5 py-2 rounded-2xl text-center min-w-[75px]">
+                            <span class="block text-lg font-bold text-white" id="count-total">0</span>
+                            <span class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Total</span>
+                        </div>
+                        <div class="bg-dark-900/80 border border-amber-500/30 px-3.5 py-2 rounded-2xl text-center min-w-[75px]">
+                            <span class="block text-lg font-bold text-amber-400" id="count-pending">0</span>
+                            <span class="text-[10px] uppercase tracking-wider text-amber-300/80 font-semibold">A Iniciar</span>
+                        </div>
+                        <div class="bg-dark-900/80 border border-blue-500/30 px-3.5 py-2 rounded-2xl text-center min-w-[75px]">
+                            <span class="block text-lg font-bold text-blue-400" id="count-progress">0</span>
+                            <span class="text-[10px] uppercase tracking-wider text-blue-300/80 font-semibold">Em Andamento</span>
+                        </div>
+                        <div class="bg-dark-900/80 border border-emerald-500/30 px-3.5 py-2 rounded-2xl text-center min-w-[75px]">
+                            <span class="block text-lg font-bold text-emerald-400" id="count-completed">0</span>
+                            <span class="text-[10px] uppercase tracking-wider text-emerald-300/80 font-semibold">Concluídas</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filtros rápidos -->
+                <div class="mt-6 pt-4 border-t border-slate-700/60 flex flex-wrap gap-2">
+                    <button onclick="filterAssignmentCategory('all')" data-assign-tab="all" class="assign-tab-btn bg-primary-600 text-white px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all">
+                        Todas as Atividades
+                    </button>
+                    <button onclick="filterAssignmentCategory('pending')" data-assign-tab="pending" class="assign-tab-btn bg-dark-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all">
+                        Para Iniciar
+                    </button>
+                    <button onclick="filterAssignmentCategory('in_progress')" data-assign-tab="in_progress" class="assign-tab-btn bg-dark-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all">
+                        Em Andamento
+                    </button>
+                    <button onclick="filterAssignmentCategory('completed')" data-assign-tab="completed" class="assign-tab-btn bg-dark-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all">
+                        Concluídas
+                    </button>
+                </div>
+            </div>
+
+            <!-- Lista de Cards das Atividades -->
+            <div id="assignments-container" class="space-y-4">
+                <!-- Injetado via JS -->
+            </div>
+        </main>
+    </div>
+
     <script src="config.js"></script>
+    <script src="student_report.js"></script>
     <script>
-        // Se houver um script_id na URL (ex: ?script=123)
+        // Parâmetros de URL (ex: ?script=XYZ&test=true para testes do professor)
         const urlParams = new URLSearchParams(window.location.search);
         const urlScriptId = urlParams.get('script');
         const urlTest = urlParams.get('test') === 'true';
-        if (urlScriptId) {
-            document.getElementById('script_id').value = urlScriptId;
-        }
-        if (urlTest) {
-            document.getElementById('name').value = 'Professor (Teste)';
-            document.getElementById('rm').value = '00000';
-            setTimeout(() => {
-                document.getElementById('submit-btn').click();
-            }, 500);
-        }
 
-        // Anti-cola: bloqueia atalhos e ações do mouse
-        document.addEventListener('copy', e => e.preventDefault());
-        document.addEventListener('cut', e => e.preventDefault());
-        document.addEventListener('paste', e => e.preventDefault());
-        
-        document.addEventListener('keydown', e => {
-            if (e.ctrlKey || e.metaKey) {
-                const key = e.key.toLowerCase();
-                if (key === 'c' || key === 'v' || key === 'x' || key === 'a') {
-                    e.preventDefault();
-                }
+        let currentStudent = null;      // { name, rm }
+        let allAssignments = [];        // lista de atribuições enriquecidas
+        let scriptsCache = {};          // id -> dados do roteiro
+        let reportPollTimer = null;
+        const reportTriggeredSet = new Set();
+        let reportQueue = Promise.resolve();
+        let currentFilter = 'all';
+
+        const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+        const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+        // Inicialização
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Caso especial: Modo Teste disparado pelo professor no painel Admin (?script=XYZ&test=true)
+            if (urlTest && urlScriptId) {
+                await startTeacherTestSession(urlScriptId);
+                return;
+            }
+
+            // Verifica se o aluno já possui login salvo no navegador
+            const savedProfile = JSON.parse(localStorage.getItem('student_profile') || 'null');
+            if (savedProfile && savedProfile.name && savedProfile.rm) {
+                currentStudent = savedProfile;
+                showDashboard();
+            } else {
+                showLogin();
             }
         });
 
-        // Compatibility wrapper
-        async function fetchGAS(payload) {
-            if (payload.action === 'student_login') {
-                try {
-                    const scriptRes = await api.db.get('scripts', payload.script_id);
-                    if (!scriptRes.data) throw new Error('Atividade não encontrada.');
-                    
-                    const studentId = payload.rm + '_' + payload.script_id;
-                    let student;
-                    if (payload.is_test) {
-                        student = { name: payload.name, rm: payload.rm, script_id: payload.script_id };
-                    } else {
-                        try {
-                            const stRes = await api.db.get('students', studentId);
-                            student = stRes.data;
-                        } catch {
-                            throw new Error('RM não cadastrado para esta atividade.');
-                        }
-                        
-                        if (student.name.toLowerCase() !== payload.name.toLowerCase().trim()) {
-                            throw new Error('Nome ou RM incorretos.');
-                        }
-                    }
-                    
-                    const sessionsRes = await api.db.get('sessions');
-                    const mySessions = (sessionsRes.items || []).filter(i => i.data.student_rm === payload.rm && i.data.script_id === payload.script_id);
-                    const completedCount = mySessions.filter(i => i.data.status === 'completed').length;
-                    const inProgress = mySessions.find(i => i.data.status === 'in_progress');
-                    
-                    let sessionId;
-                    if (inProgress) {
-                        sessionId = inProgress.id;
-                    } else {
-                        if (scriptRes.data.attempts_limit > 0 && completedCount >= scriptRes.data.attempts_limit) {
-                            return { success: false, max_attempts_reached: true };
-                        }
-                        sessionId = 'sess_' + Date.now() + '_' + Math.floor(Math.random()*1000);
-                        await api.db.post('sessions', {
-                            student_rm: payload.rm,
-                            student_name: student.name,
-                            script_id: payload.script_id,
-                            status: 'in_progress',
-                            current_item_order: 1,
-                            attempt_count: completedCount + 1,
-                            chat_history: [],
-                            logs: [],
-                            step_grades: {}
-                        }, sessionId);
-                    }
-                    
-                    await api.db.post('students', { ...student, status: 'active', attempts: completedCount + (inProgress ? 0 : 1) }, studentId);
-                    
-                    return {
-                        success: true,
-                        session_id: sessionId,
-                        name: student.name,
-                        rm: student.rm,
-                        script_id: payload.script_id
-                    };
-                } catch(e) {
-                    throw new Error(e.message);
-                }
+        // Modo Teste do Professor
+        async function startTeacherTestSession(scriptId) {
+            try {
+                const testSessionId = 'sess_test_' + Date.now();
+                await api.db.post('sessions', {
+                    student_rm: '00000',
+                    student_name: 'Professor (Teste)',
+                    script_id: scriptId,
+                    status: 'in_progress',
+                    current_item_order: 1,
+                    attempt_count: 1,
+                    chat_history: [],
+                    logs: [],
+                    step_grades: {}
+                }, testSessionId);
+
+                localStorage.setItem('student_session', JSON.stringify({
+                    session_id: testSessionId,
+                    name: 'Professor (Teste)',
+                    rm: '00000',
+                    script_id: scriptId
+                }));
+                window.location.href = 'chat.html';
+            } catch (err) {
+                alert('Erro ao iniciar modo teste: ' + err.message);
+                showLogin();
             }
-            throw new Error('Ação nao mapeada: ' + payload.action);
         }
 
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
+        function showLogin() {
+            document.getElementById('sec-dashboard').classList.add('hidden-section');
+            document.getElementById('sec-login').classList.remove('hidden-section');
+        }
+
+        function showDashboard() {
+            document.getElementById('sec-login').classList.add('hidden-section');
+            document.getElementById('sec-dashboard').classList.remove('hidden-section');
+            document.getElementById('dash-student-name').innerText = currentStudent.name;
+            document.getElementById('dash-student-rm').innerText = currentStudent.rm;
+            loadStudentAssignments();
+        }
+
+        function logoutStudent() {
+            clearTimeout(reportPollTimer);
+            localStorage.removeItem('student_profile');
+            localStorage.removeItem('student_session');
+            currentStudent = null;
+            allAssignments = [];
+            document.getElementById('login-name').value = '';
+            document.getElementById('login-rm').value = '';
+            showLogin();
+        }
+
+        // Submissão do formulário de Login (Nome Completo + RM apenas)
+        document.getElementById('form-login').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            const btn = document.getElementById('submit-btn');
-            const btnText = document.getElementById('btn-text');
-            const btnIcon = document.getElementById('btn-icon');
-            const btnLoader = document.getElementById('btn-loader');
-            const errorAlert = document.getElementById('error-alert');
-            
-            errorAlert.classList.add('hidden');
+            const btn = document.getElementById('btn-login-submit');
+            const btnText = document.getElementById('btn-login-text');
+            const btnIcon = document.getElementById('btn-login-icon');
+            const btnLoader = document.getElementById('btn-login-loader');
+            const errAlert = document.getElementById('login-error');
+            const errText = document.getElementById('login-error-text');
+
+            errAlert.classList.add('hidden');
             btn.disabled = true;
-            btnText.innerText = 'Conectando...';
+            btnText.innerText = 'Verificando cadastro...';
             btnIcon.classList.add('hidden');
             btnLoader.classList.remove('hidden');
-            
+
+            const nameInput = document.getElementById('login-name').value.trim();
+            const rmInput = document.getElementById('login-rm').value.trim();
+
             try {
-                const payload = {
-                    action: 'student_login',
-                    script_id: document.getElementById('script_id').value,
-                    name: document.getElementById('name').value,
-                    rm: document.getElementById('rm').value,
-                    is_test: urlTest
-                };
-                
-                const data = await fetchGAS(payload);
-                
-                // Salva no LocalStorage
-                localStorage.setItem('student_session', JSON.stringify({
-                    session_id: data.session_id,
-                    name: data.name,
-                    rm: payload.rm,
-                    script_id: payload.script_id
-                }));
-                
-                // Redireciona para o chat
-                window.location.href = 'chat.html';
-                
+                // Busca na coleção 'students' todos os registros cadastrados pelos professores
+                const studentsRes = await api.db.get('students');
+                const allStudentRecords = studentsRes.items || [];
+
+                // Encontra os registros atribuídos a este aluno (pelo RM e Nome normalizado)
+                const matches = allStudentRecords.filter(item => {
+                    const st = item.data || {};
+                    return String(st.rm || '').trim() === rmInput && norm(st.name) === norm(nameInput);
+                });
+
+                if (matches.length === 0) {
+                    throw new Error('Nenhum aluno encontrado com este Nome e RM. Verifique a digitação ou consulte o seu professor para confirmar seu cadastro na turma.');
+                }
+
+                // Nome canônico registrado na base
+                const canonicalName = matches[0].data.name;
+                currentStudent = { name: canonicalName, rm: rmInput };
+                localStorage.setItem('student_profile', JSON.stringify(currentStudent));
+
+                showDashboard();
             } catch (err) {
-                document.getElementById('error-text').innerText = err.message;
-                errorAlert.classList.remove('hidden');
+                errText.innerText = err.message;
+                errAlert.classList.remove('hidden');
             } finally {
                 btn.disabled = false;
-                btnText.innerText = 'Começar Atividade';
+                btnText.innerText = 'Acessar Minhas Atividades';
                 btnIcon.classList.remove('hidden');
                 btnLoader.classList.add('hidden');
             }
         });
+
+        // Carrega todas as atribuições, scripts e sessões do estudante logado
+        async function loadStudentAssignments() {
+            clearTimeout(reportPollTimer);
+            const container = document.getElementById('assignments-container');
+            container.innerHTML = `
+                <div class="glass-panel rounded-2xl p-8 text-center text-slate-400">
+                    <i class="fa-solid fa-circle-notch fa-spin text-2xl text-primary-400 mb-3"></i>
+                    <p class="text-sm">Carregando suas atividades atribuídas...</p>
+                </div>
+            `;
+
+            try {
+                // 1. Busca os vínculos de matrícula do aluno em 'students'
+                const studentsRes = await api.db.get('students');
+                const studentRecords = (studentsRes.items || []).filter(item => {
+                    const st = item.data || {};
+                    return String(st.rm || '').trim() === String(currentStudent.rm).trim() && norm(st.name) === norm(currentStudent.name);
+                });
+
+                if (studentRecords.length === 0) {
+                    renderEmptyAssignments();
+                    updateCounters(0, 0, 0, 0);
+                    return;
+                }
+
+                // Lista de IDs de roteiro aos quais o aluno foi vinculado
+                const assignedScriptIds = [...new Set(studentRecords.map(r => r.data.script_id).filter(Boolean))];
+
+                // 2. Busca todos os roteiros cadastrados para mapear título, disciplina, etc.
+                const scriptsRes = await api.db.get('scripts');
+                (scriptsRes.items || []).forEach(sc => {
+                    scriptsCache[sc.id] = sc.data;
+                });
+
+                // 3. Busca todas as sessões registradas para este estudante
+                const sessionsRes = await api.db.get('sessions');
+                const studentSessions = (sessionsRes.items || [])
+                    .filter(i => String(i.data.student_rm).trim() === String(currentStudent.rm).trim() && norm(i.data.student_name) === norm(currentStudent.name))
+                    .map(i => ({ id: i.id, ...i.data }));
+
+                // 4. Monta o modelo unificado de cada atribuição
+                allAssignments = assignedScriptIds.map(scriptId => {
+                    const script = scriptsCache[scriptId] || { title: `Atividade (${scriptId})`, subject: 'Geral', items: [] };
+                    const mySessions = studentSessions.filter(s => String(s.script_id) === String(scriptId));
+                    const inProgress = mySessions.find(s => s.status === 'in_progress');
+                    const completedSessions = mySessions
+                        .filter(s => s.status === 'completed')
+                        .sort((a, b) => (new Date(StudentReport.completedAt(b) || 0).getTime() - new Date(StudentReport.completedAt(a) || 0).getTime()));
+
+                    const completedCount = completedSessions.length;
+                    const maxAttempts = Number(script.attempts_limit) || 0;
+                    const hasAttemptsLeft = (maxAttempts === 0) || (completedCount < maxAttempts);
+
+                    let status = 'pending'; // 'pending' (não iniciada) | 'in_progress' | 'completed'
+                    if (inProgress) {
+                        status = 'in_progress';
+                    } else if (completedCount > 0) {
+                        status = 'completed';
+                    }
+
+                    return {
+                        scriptId,
+                        script,
+                        status,
+                        inProgressSession: inProgress,
+                        latestCompletedSession: completedSessions[0] || null,
+                        completedCount,
+                        maxAttempts,
+                        hasAttemptsLeft,
+                        allSessions: mySessions
+                    };
+                });
+
+                // Ordenação: primeiro em andamento, depois novas para iniciar, depois concluídas
+                allAssignments.sort((a, b) => {
+                    const order = { in_progress: 1, pending: 2, completed: 3 };
+                    return (order[a.status] || 9) - (order[b.status] || 9);
+                });
+
+                renderAssignments();
+                autoGenerateMissingReports();
+                scheduleReportPoll();
+            } catch (err) {
+                container.innerHTML = `
+                    <div class="glass-panel rounded-2xl p-6 text-center text-red-400">
+                        <i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i>
+                        <p class="text-sm">Erro ao carregar atividades: ${esc(err.message)}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function updateCounters(total, pending, progress, completed) {
+            document.getElementById('count-total').innerText = total;
+            document.getElementById('count-pending').innerText = pending;
+            document.getElementById('count-progress').innerText = progress;
+            document.getElementById('count-completed').innerText = completed;
+        }
+
+        function renderEmptyAssignments() {
+            const container = document.getElementById('assignments-container');
+            container.innerHTML = `
+                <div class="glass-panel rounded-3xl p-10 text-center border border-slate-700/60">
+                    <div class="w-16 h-16 rounded-2xl bg-dark-800 border border-slate-700 flex items-center justify-center mx-auto mb-4 text-slate-400 text-2xl">
+                        <i class="fa-solid fa-inbox"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-2">Nenhuma atividade atribuída ainda</h3>
+                    <p class="text-slate-400 text-sm max-w-md mx-auto leading-relaxed">
+                        Assim que o seu professor cadastrar a sua turma em uma atividade, ela aparecerá automaticamente nesta tela, pronta para você iniciar.
+                    </p>
+                </div>
+            `;
+        }
+
+        function filterAssignmentCategory(cat) {
+            currentFilter = cat;
+            document.querySelectorAll('.assign-tab-btn').forEach(btn => {
+                if (btn.getAttribute('data-assign-tab') === cat) {
+                    btn.className = 'assign-tab-btn bg-primary-600 text-white px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all';
+                } else {
+                    btn.className = 'assign-tab-btn bg-dark-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all';
+                }
+            });
+            renderAssignments();
+        }
+
+        function renderAssignments() {
+            const container = document.getElementById('assignments-container');
+            if (!allAssignments.length) {
+                renderEmptyAssignments();
+                updateCounters(0, 0, 0, 0);
+                return;
+            }
+
+            const cPending = allAssignments.filter(a => a.status === 'pending').length;
+            const cProgress = allAssignments.filter(a => a.status === 'in_progress').length;
+            const cCompleted = allAssignments.filter(a => a.status === 'completed').length;
+            updateCounters(allAssignments.length, cPending, cProgress, cCompleted);
+
+            let filtered = allAssignments;
+            if (currentFilter !== 'all') {
+                filtered = allAssignments.filter(a => a.status === currentFilter);
+            }
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="glass-panel rounded-2xl p-8 text-center text-slate-400 border border-slate-700/50">
+                        <p class="text-sm">Nenhuma atividade nesta categoria no momento.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            filtered.forEach(item => {
+                const sc = item.script;
+                const totalSteps = (sc.items || []).length;
+
+                // 1. ATIVIDADE DISPONÍVEL PARA INICIAR (NOVA)
+                if (item.status === 'pending') {
+                    html += `
+                        <div class="glass-panel rounded-3xl p-6 sm:p-7 border border-amber-500/30 hover:border-amber-500/50 transition-all flex flex-col md:flex-row md:items-center justify-between gap-5 bg-gradient-to-r from-amber-950/15 via-dark-800/40 to-dark-800/60">
+                            <div>
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="inline-block px-3 py-0.5 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                        ${esc(sc.subject || 'Atividade')} · Nova / A Iniciar
+                                    </span>
+                                    <span class="text-xs text-slate-400 font-mono">ID: ${esc(item.scriptId)}</span>
+                                </div>
+                                <h3 class="text-xl font-bold text-white mb-1.5">${esc(sc.title)}</h3>
+                                <p class="text-xs sm:text-sm text-slate-300">
+                                    <i class="fa-solid fa-stairs text-amber-400 mr-1.5"></i>${totalSteps} etapas de mediação socrática
+                                    ${item.maxAttempts > 0 ? `· <i class="fa-solid fa-rotate text-slate-400 ml-1.5 mr-1"></i>Limite: ${item.maxAttempts} tentativas` : ''}
+                                </p>
+                            </div>
+                            <div class="shrink-0">
+                                <button onclick="startNewAssignment('${esc(item.scriptId)}')" class="w-full sm:w-auto bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-bold px-6 py-3.5 rounded-2xl transition-all shadow-lg shadow-amber-600/20 flex items-center justify-center">
+                                    <i class="fa-solid fa-rocket mr-2"></i> Iniciar Atividade
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // 2. ATIVIDADE EM ANDAMENTO (CONTINUAR)
+                else if (item.status === 'in_progress') {
+                    const sess = item.inProgressSession;
+                    const curStep = Math.min(sess.current_item_order || 1, totalSteps || 1);
+                    const pct = totalSteps > 0 ? Math.round((curStep / totalSteps) * 100) : 0;
+
+                    html += `
+                        <div class="glass-panel rounded-3xl p-6 sm:p-7 border border-blue-500/30 hover:border-blue-500/50 transition-all flex flex-col md:flex-row md:items-center justify-between gap-5 bg-gradient-to-r from-blue-950/20 via-dark-800/40 to-dark-800/60">
+                            <div class="flex-grow">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="inline-block px-3 py-0.5 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30 animate-pulse">
+                                        <i class="fa-solid fa-spinner fa-spin mr-1"></i> ${esc(sc.subject || 'Atividade')} · Em Andamento
+                                    </span>
+                                    <span class="text-xs text-slate-400 font-mono">Tentativa ${sess.attempt_count || 1}</span>
+                                </div>
+                                <h3 class="text-xl font-bold text-white mb-2">${esc(sc.title)}</h3>
+                                
+                                <!-- Barra de Progresso rápida -->
+                                <div class="max-w-md">
+                                    <div class="flex justify-between text-xs text-slate-300 font-medium mb-1">
+                                        <span>Progresso: Etapa ${curStep} de ${totalSteps || '-'}</span>
+                                        <span class="text-blue-400 font-bold">${pct}%</span>
+                                    </div>
+                                    <div class="w-full bg-dark-900 rounded-full h-2 border border-slate-700/80 overflow-hidden">
+                                        <div class="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full transition-all" style="width: ${pct}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="shrink-0">
+                                <button onclick="continueOngoingAssignment('${esc(sess.id)}', '${esc(item.scriptId)}')" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-3.5 rounded-2xl transition-all shadow-lg shadow-blue-600/25 flex items-center justify-center">
+                                    <i class="fa-solid fa-play mr-2"></i> Continuar de Onde Parou
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // 3. ATIVIDADE CONCLUÍDA
+                else if (item.status === 'completed') {
+                    const sess = item.latestCompletedSession;
+                    const grade = sess && sess.final_grade ? parseFloat(sess.final_grade).toFixed(1) : '-';
+                    const dt = sess ? StudentReport.completedAt(sess) : null;
+                    const dateFormatted = dt ? new Date(dt).toLocaleString('pt-BR') : '';
+                    const repState = sess ? StudentReport.getState(sess) : 'missing';
+
+                    let reportBtn = '';
+                    if (repState === 'ready') {
+                        reportBtn = `
+                            <button onclick="downloadStudentPDF('${esc(sess.id)}', '${esc(item.scriptId)}')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2.5 rounded-xl text-xs sm:text-sm transition-colors flex items-center">
+                                <i class="fa-solid fa-file-pdf mr-2"></i> Baixar Relatório PDF
+                            </button>
+                        `;
+                    } else if (repState === 'error') {
+                        reportBtn = `
+                            <button onclick="retryStudentReport('${esc(sess.id)}')" class="bg-dark-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-medium px-4 py-2.5 rounded-xl text-xs transition-colors" title="Tentar gerar novamente">
+                                <i class="fa-solid fa-rotate mr-1.5 text-amber-400"></i> Gerar Relatório
+                            </button>
+                        `;
+                    } else {
+                        reportBtn = `
+                            <button disabled class="bg-dark-800/80 border border-slate-700 text-slate-400 font-medium px-4 py-2.5 rounded-xl text-xs cursor-not-allowed flex items-center">
+                                <i class="fa-solid fa-circle-notch fa-spin mr-2 text-primary-400"></i> Relatório em elaboração...
+                            </button>
+                        `;
+                    }
+
+                    let newAttemptBtn = '';
+                    if (item.hasAttemptsLeft) {
+                        newAttemptBtn = `
+                            <button onclick="startNewAssignment('${esc(item.scriptId)}')" class="bg-dark-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold px-4 py-2.5 rounded-xl text-xs sm:text-sm transition-colors flex items-center">
+                                <i class="fa-solid fa-rotate-right mr-1.5 text-indigo-400"></i> Nova Tentativa
+                            </button>
+                        `;
+                    }
+
+                    html += `
+                        <div class="glass-panel rounded-3xl p-6 sm:p-7 border border-emerald-500/30 hover:border-emerald-500/40 transition-all bg-gradient-to-r from-emerald-950/15 via-dark-800/40 to-dark-800/60">
+                            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
+                                <div>
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <span class="inline-block px-3 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                            <i class="fa-solid fa-check-circle mr-1"></i> ${esc(sc.subject || 'Atividade')} · Concluída
+                                        </span>
+                                        <span class="text-xs text-slate-400 font-mono">Tentativa ${sess.attempt_count || item.completedCount}</span>
+                                    </div>
+                                    <h3 class="text-xl font-bold text-white mb-1">${esc(sc.title)}</h3>
+                                    <p class="text-xs text-slate-400">
+                                        ${dateFormatted ? `Concluída em ${dateFormatted} · ` : ''}
+                                        ${item.completedCount} tentativa(s) realizada(s)
+                                        ${item.maxAttempts > 0 ? ` de ${item.maxAttempts} permitidas` : ''}
+                                    </p>
+                                </div>
+
+                                <div class="text-left sm:text-right shrink-0 bg-dark-900/60 p-3.5 rounded-2xl border border-slate-700/60 sm:min-w-[130px]">
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Nota Final</span>
+                                    <span class="text-2xl font-black text-white">${grade}</span>
+                                    <span class="text-xs text-slate-400"> / 10</span>
+                                </div>
+                            </div>
+
+                            <div class="pt-4 border-t border-slate-700/60 flex flex-wrap items-center justify-between gap-3">
+                                <span class="text-xs text-slate-400 flex items-center">
+                                    <i class="fa-solid fa-info-circle mr-1.5 text-primary-400"></i> Relatório individual formativo com orientações de anotação
+                                </span>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    ${reportBtn}
+                                    ${newAttemptBtn}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            container.innerHTML = html;
+        }
+
+        // Inicia uma nova atividade ou nova tentativa
+        async function startNewAssignment(scriptId) {
+            const sc = scriptsCache[scriptId] || {};
+            const title = sc.title || 'esta atividade';
+            
+            // Criação da sessão em 'sessions'
+            try {
+                // Conta tentativas concluídas
+                const sessionsRes = await api.db.get('sessions');
+                const mySessions = (sessionsRes.items || []).filter(i => 
+                    String(i.data.student_rm).trim() === String(currentStudent.rm).trim() && 
+                    String(i.data.script_id) === String(scriptId)
+                );
+                const completedCount = mySessions.filter(i => i.data.status === 'completed').length;
+                const inProgress = mySessions.find(i => i.data.status === 'in_progress');
+
+                if (inProgress) {
+                    continueOngoingAssignment(inProgress.id, scriptId);
+                    return;
+                }
+
+                if (sc.attempts_limit > 0 && completedCount >= sc.attempts_limit) {
+                    alert(`Você já atingiu o limite de ${sc.attempts_limit} tentativa(s) para este roteiro.`);
+                    return;
+                }
+
+                const newSessionId = 'sess_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+                await api.db.post('sessions', {
+                    student_rm: currentStudent.rm,
+                    student_name: currentStudent.name,
+                    script_id: scriptId,
+                    status: 'in_progress',
+                    current_item_order: 1,
+                    attempt_count: completedCount + 1,
+                    chat_history: [],
+                    logs: [],
+                    step_grades: {}
+                }, newSessionId);
+
+                // Atualiza status do aluno para 'active'
+                const studentDocId = currentStudent.rm + '_' + scriptId;
+                await api.db.post('students', {
+                    name: currentStudent.name,
+                    rm: currentStudent.rm,
+                    script_id: scriptId,
+                    status: 'active',
+                    attempts: completedCount + 1
+                }, studentDocId);
+
+                // Salva a sessão ativa no LocalStorage e redireciona
+                localStorage.setItem('student_session', JSON.stringify({
+                    session_id: newSessionId,
+                    name: currentStudent.name,
+                    rm: currentStudent.rm,
+                    script_id: scriptId
+                }));
+
+                window.location.href = 'chat.html';
+            } catch (err) {
+                alert('Erro ao iniciar atividade: ' + err.message);
+            }
+        }
+
+        // Continua atividade em andamento
+        function continueOngoingAssignment(sessionId, scriptId) {
+            localStorage.setItem('student_session', JSON.stringify({
+                session_id: sessionId,
+                name: currentStudent.name,
+                rm: currentStudent.rm,
+                script_id: scriptId
+            }));
+            window.location.href = 'chat.html';
+        }
+
+        // Baixa o relatório em PDF formatado
+        async function downloadStudentPDF(sessionId, scriptId) {
+            try {
+                const sessionRes = await api.db.get('sessions', sessionId);
+                const session = sessionRes.data;
+                const script = scriptsCache[scriptId] || (await api.db.get('scripts', scriptId)).data;
+                StudentReport.downloadPDF(session, script);
+            } catch (err) {
+                alert('Erro ao gerar PDF: ' + err.message);
+            }
+        }
+
+        // Tenta gerar relatório novamente caso tenha falhado
+        function retryStudentReport(sessionId) {
+            reportTriggeredSet.delete(sessionId);
+            StudentReport.generate(sessionId, { force: true }).then(() => {
+                loadStudentAssignments();
+            }).catch(e => alert('Erro: ' + e.message));
+        }
+
+        // Dispara a elaboração em segundo plano de relatórios pendentes de sessões concluídas
+        function autoGenerateMissingReports() {
+            allAssignments.forEach(assign => {
+                if (assign.status === 'completed' && assign.latestCompletedSession) {
+                    const sess = assign.latestCompletedSession;
+                    const st = StudentReport.getState(sess);
+                    if ((st === 'missing' || st === 'error') && !reportTriggeredSet.has(sess.id)) {
+                        reportTriggeredSet.add(sess.id);
+                        reportQueue = reportQueue
+                            .then(() => StudentReport.generate(sess.id))
+                            .then(updated => {
+                                if (updated) {
+                                    loadStudentAssignments();
+                                }
+                            })
+                            .catch(() => {});
+                    }
+                }
+            });
+        }
+
+        function scheduleReportPoll() {
+            const hasPendingReports = allAssignments.some(assign => {
+                if (assign.status === 'completed' && assign.latestCompletedSession) {
+                    const st = StudentReport.getState(assign.latestCompletedSession);
+                    return st === 'pending' || st === 'missing';
+                }
+                return false;
+            });
+
+            if (hasPendingReports) {
+                reportPollTimer = setTimeout(loadStudentAssignments, 9000);
+            }
+        }
     </script>
 </body>
 </html>

@@ -65,7 +65,7 @@
                         <p id="student-name" class="text-sm font-medium text-white"></p>
                         <p class="text-xs text-slate-400">Aluno</p>
                     </div>
-                    <a href="atividades.html" class="w-10 h-10 bg-dark-800 hover:bg-emerald-500/20 hover:text-emerald-400 rounded-xl flex items-center justify-center text-slate-400 transition-colors border border-slate-700 hover:border-emerald-500/30" title="Minhas Atividades Realizadas">
+                    <a href="index.html" class="w-10 h-10 bg-dark-800 hover:bg-emerald-500/20 hover:text-emerald-400 rounded-xl flex items-center justify-center text-slate-400 transition-colors border border-slate-700 hover:border-emerald-500/30" title="Voltar para Minhas Atividades">
                         <i class="fa-solid fa-folder-open"></i>
                     </a>
                     <button onclick="restartAttempt()" class="w-10 h-10 bg-dark-800 hover:bg-primary-500/20 hover:text-primary-400 rounded-xl flex items-center justify-center text-slate-400 transition-colors border border-slate-700 hover:border-primary-500/30" title="Iniciar Nova Tentativa">
@@ -168,7 +168,7 @@
                     <i class="fa-solid fa-file-pdf mr-2"></i>Baixar Relatório PDF
                 </button>
                 <p id="student-report-status" class="text-xs text-green-200/70 mt-2"></p>
-                <a href="atividades.html" class="inline-block text-xs text-slate-300 hover:text-white underline mt-1"><i class="fa-solid fa-folder-open mr-1"></i>Ver minhas atividades realizadas</a>
+                <a href="index.html" class="inline-block text-xs text-slate-300 hover:text-white underline mt-1"><i class="fa-solid fa-folder-open mr-1"></i>Ver todas as minhas atividades</a>
             </div>
             
             <div id="restart-attempt-container" class="mt-6 hidden">
@@ -294,21 +294,34 @@
             if (!confirm("Deseja iniciar uma nova tentativa do zero? Todo o seu progresso atual nesta tentativa será mantido nos registros do professor, e você começará uma nova tentativa limpa.")) return;
             
             try {
-                const res = await fetchGAS({
-                    action: 'student_login',
-                    name: sessionData.name,
-                    rm: sessionData.rm,
-                    script_id: sessionData.script_id,
-                    force_restart: true
-                });
-                
-                if (res.error) {
-                    alert(res.error);
-                } else {
-                    sessionData.session_id = res.session_id;
-                    localStorage.setItem('student_session', JSON.stringify(sessionData));
-                    window.location.reload();
+                const scriptRes = await api.db.get('scripts', sessionData.script_id);
+                const script = scriptRes.data;
+                const sessionsRes = await api.db.get('sessions');
+                const mySessions = (sessionsRes.items || []).filter(i => 
+                    String(i.data.student_rm).trim() === String(sessionData.rm).trim() && 
+                    String(i.data.script_id) === String(sessionData.script_id)
+                );
+                const completedCount = mySessions.filter(i => i.data.status === 'completed').length;
+                if (script.attempts_limit > 0 && completedCount >= script.attempts_limit) {
+                    alert("Você já atingiu o limite de " + script.attempts_limit + " tentativa(s) permitida(s).");
+                    return;
                 }
+                const newSessionId = 'sess_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+                await api.db.post('sessions', {
+                    student_rm: sessionData.rm,
+                    student_name: sessionData.name,
+                    script_id: sessionData.script_id,
+                    status: 'in_progress',
+                    current_item_order: 1,
+                    attempt_count: completedCount + 1,
+                    chat_history: [],
+                    logs: [],
+                    step_grades: {}
+                }, newSessionId);
+
+                sessionData.session_id = newSessionId;
+                localStorage.setItem('student_session', JSON.stringify(sessionData));
+                window.location.reload();
             } catch (err) {
                 alert("Erro ao reiniciar: " + err.message);
             }
