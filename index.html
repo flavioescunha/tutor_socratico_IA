@@ -336,14 +336,14 @@
                     return;
                 }
 
-                // Lista de IDs de roteiro aos quais o aluno foi vinculado
-                const assignedScriptIds = [...new Set(studentRecords.map(r => r.data.script_id).filter(Boolean))];
-
                 // 2. Busca todos os roteiros cadastrados para mapear título, disciplina, etc.
                 const scriptsRes = await api.db.get('scripts');
                 (scriptsRes.items || []).forEach(sc => {
                     scriptsCache[sc.id] = sc.data;
                 });
+
+                // Lista de IDs de roteiro válidos aos quais o aluno foi vinculado
+                const assignedScriptIds = [...new Set(studentRecords.map(r => r.data.script_id).filter(id => id && scriptsCache[id]))];
 
                 // 3. Busca todas as sessões registradas para este estudante
                 const sessionsRes = await api.db.get('sessions');

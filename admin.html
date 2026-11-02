@@ -216,7 +216,7 @@
             <div class="flex justify-between items-center mb-6">
                 <div>
                     <button onclick="showSection('dashboard')" class="text-slate-400 hover:text-white mb-2 text-sm"><i class="fa-solid fa-arrow-left mr-1"></i> Voltar</button>
-                    <h2 class="text-2xl font-bold text-white">Alunos do Roteiro</h2>
+                    <h2 class="text-2xl font-bold text-white">Alunos do Roteiro: <span id="students-script-title" class="text-indigo-400 font-medium"></span></h2>
                 </div>
             </div>
 
@@ -1006,6 +1006,16 @@ MATERIAL BASE DA AULA:
 
         async function loadStudents(scriptId) {
             window.currentStudentsScriptId = scriptId;
+            const sObj = globalScripts.find(s => s.id.toString() === scriptId.toString());
+            const titleElem = document.getElementById('students-script-title');
+            if (titleElem) {
+                titleElem.innerText = sObj ? `${sObj.subject} - ${sObj.title}` : `ID: ${scriptId}`;
+            }
+            const importText = document.getElementById('import-students-text');
+            if (importText) importText.value = '';
+            const importMsg = document.getElementById('import-students-msg');
+            if (importMsg) importMsg.classList.add('hidden');
+
             const tbody = document.getElementById('students-table-body');
             tbody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-slate-400">Carregando...</td></tr>';
             showSection('students');
