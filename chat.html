@@ -428,6 +428,7 @@
                             const stRes = await api.db.get('students', studentId);
                             if (stRes.data) {
                                 stRes.data.status = 'completed';
+                                stRes.data.final_grade = session.final_grade;
                                 await api.db.post('students', stRes.data, studentId);
                             }
                         } catch(e) {}

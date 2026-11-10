@@ -94,7 +94,7 @@
                         <h2 class="text-sm sm:text-base font-bold text-white leading-tight flex items-center gap-1.5">
                             <span>Olá, <span id="dash-student-name">Estudante</span></span>
                         </h2>
-                        <p class="text-xs text-slate-400 font-mono">RM: <span id="dash-student-rm" class="text-primary-400">---</span></p>
+                        <p class="text-xs text-slate-400 font-mono">RM: <span id="dash-student-rm" class="text-primary-400">---</span><span id="dash-student-turma" class="text-indigo-300 font-sans ml-1.5 font-medium"></span></p>
                     </div>
                 </div>
 
@@ -246,6 +246,10 @@
             document.getElementById('sec-dashboard').classList.remove('hidden-section');
             document.getElementById('dash-student-name').innerText = currentStudent.name;
             document.getElementById('dash-student-rm').innerText = currentStudent.rm;
+            const turmaEl = document.getElementById('dash-student-turma');
+            if (turmaEl) {
+                turmaEl.innerText = currentStudent.turma ? ` • ${currentStudent.turma}` : '';
+            }
             loadStudentAssignments();
         }
 
@@ -294,9 +298,13 @@
                     throw new Error('Nenhum aluno encontrado com este Nome e RM. Verifique a digitação ou consulte o seu professor para confirmar seu cadastro na turma.');
                 }
 
-                // Nome canônico registrado na base
+                // Nome canônico e turma registrados na base
                 const canonicalName = matches[0].data.name;
-                currentStudent = { name: canonicalName, rm: rmInput };
+                const studentTurma = matches.find(m => m.data && (m.data.turma || m.data.serie))?.data?.turma 
+                    || matches.find(m => m.data && (m.data.turma || m.data.serie))?.data?.serie 
+                    || matches[0].data.turma 
+                    || '';
+                currentStudent = { name: canonicalName, rm: rmInput, turma: studentTurma };
                 localStorage.setItem('student_profile', JSON.stringify(currentStudent));
 
                 showDashboard();
@@ -651,11 +659,19 @@
                     step_grades: {}
                 }, newSessionId);
 
-                // Atualiza status do aluno para 'active'
+                // Atualiza status do aluno para 'active' preservando campos como turma
                 const studentDocId = currentStudent.rm + '_' + scriptId;
+                let existingStudentData = {};
+                try {
+                    const existingSt = await api.db.get('students', studentDocId);
+                    if (existingSt && existingSt.data) existingStudentData = existingSt.data;
+                } catch(e) {}
+
                 await api.db.post('students', {
+                    ...existingStudentData,
                     name: currentStudent.name,
                     rm: currentStudent.rm,
+                    turma: currentStudent.turma || existingStudentData.turma || existingStudentData.serie || '',
                     script_id: scriptId,
                     status: 'active',
                     attempts: completedCount + 1

@@ -223,25 +223,51 @@
             <!-- Import Students Panel -->
             <div class="glass-panel rounded-3xl p-6 sm:p-8 mb-6">
                 <h3 class="text-lg font-semibold text-white mb-4">Importar Alunos (Copiar do Excel)</h3>
-                <p class="text-sm text-slate-400 mb-4">Cole abaixo os dados das colunas na seguinte ordem: <strong>Número, Nome, RM, Série</strong>.</p>
-                <textarea id="import-students-text" class="w-full bg-dark-800/50 border border-slate-700 rounded-xl text-white px-4 py-3 text-sm resize-y mb-4 focus:ring-1 focus:ring-indigo-500" rows="3" placeholder="1&#9;João da Silva&#9;12345&#9;1º Ano..."></textarea>
+                <p class="text-sm text-slate-400 mb-4">Cole abaixo os dados das colunas na seguinte ordem: <strong>Número, Nome, RM, Série/Turma</strong>.</p>
+                <textarea id="import-students-text" class="w-full bg-dark-800/50 border border-slate-700 rounded-xl text-white px-4 py-3 text-sm resize-y mb-4 focus:ring-1 focus:ring-indigo-500" rows="3" placeholder="1&#9;João da Silva&#9;12345&#9;1º Ano A..."></textarea>
                 <button onclick="importStudents()" id="btn-import-students" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"><i class="fa-solid fa-file-import mr-2"></i>Salvar Alunos</button>
                 <div id="import-students-msg" class="hidden mt-3 text-sm"></div>
             </div>
 
             <div class="glass-panel rounded-3xl p-6 sm:p-8">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-semibold text-white">Lista de Alunos</h3>
-                    <button onclick="deleteAllStudents()" class="bg-red-500/10 text-red-400 hover:bg-red-500/20 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"><i class="fa-solid fa-trash mr-2"></i>Excluir Todos</button>
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                    <div class="flex items-center gap-3">
+                        <h3 class="text-lg font-semibold text-white">Lista de Alunos</h3>
+                        <span id="students-count-badge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">0 alunos</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="relative">
+                            <input id="students-search-input" oninput="filterStudentsTable()" type="text" placeholder="Filtrar aluno ou turma..." class="bg-dark-800/80 border border-slate-700 rounded-xl text-white pl-9 pr-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-500 w-44 sm:w-56 placeholder-slate-500">
+                            <i class="fa-solid fa-magnifying-glass text-slate-500 absolute left-3 top-2 text-xs"></i>
+                        </div>
+                        <button onclick="deleteAllStudents()" class="bg-red-500/10 text-red-400 hover:bg-red-500/20 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap"><i class="fa-solid fa-trash mr-1.5"></i>Excluir Todos</button>
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
                             <tr class="border-b border-slate-700/50">
-                                <th class="pb-3 text-sm font-medium text-slate-400">Aluno</th>
+                                <th id="th-sort-name" onclick="sortStudentsBy('name')" class="pb-3 text-sm font-medium text-slate-400 hover:text-white cursor-pointer select-none transition-colors" title="Clique para ordenar por Nome">
+                                    <div class="flex items-center gap-1.5">
+                                        <span>Aluno</span>
+                                        <span id="sort-icon-name" class="text-xs"><i class="fa-solid fa-sort text-slate-600"></i></span>
+                                    </div>
+                                </th>
+                                <th id="th-sort-turma" onclick="sortStudentsBy('turma')" class="pb-3 text-sm font-medium text-slate-400 hover:text-white cursor-pointer select-none transition-colors" title="Clique para ordenar por Turma">
+                                    <div class="flex items-center gap-1.5">
+                                        <span>Turma</span>
+                                        <span id="sort-icon-turma" class="text-xs"><i class="fa-solid fa-sort text-slate-600"></i></span>
+                                    </div>
+                                </th>
                                 <th class="pb-3 text-sm font-medium text-slate-400">Progresso</th>
                                 <th class="pb-3 text-sm font-medium text-slate-400">Status</th>
-                                <th class="pb-3 text-sm font-medium text-slate-400">Ações</th>
+                                <th id="th-sort-grade" onclick="sortStudentsBy('grade')" class="pb-3 text-sm font-medium text-slate-400 hover:text-white cursor-pointer select-none transition-colors" title="Clique para ordenar por Nota">
+                                    <div class="flex items-center gap-1.5">
+                                        <span>Nota</span>
+                                        <span id="sort-icon-grade" class="text-xs"><i class="fa-solid fa-sort text-slate-600"></i></span>
+                                    </div>
+                                </th>
+                                <th class="pb-3 text-sm font-medium text-slate-400 text-right pr-2">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="students-table-body" class="text-sm divide-y divide-slate-700/50">
@@ -783,6 +809,7 @@ MATERIAL BASE DA AULA:
     <script src="config.js"></script>
     <script src="student_report.js"></script>
     <script>
+        const escHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         
         // Compatibility wrapper para consumir a nova API genérica
         async function fetchGAS(payload) {
@@ -830,13 +857,27 @@ MATERIAL BASE DA AULA:
             }
             if (payload.action === 'admin_add_students') {
                 const scriptId = payload.script_id;
+                let existingMap = {};
+                try {
+                    const allRes = await api.db.get('students');
+                    (allRes.items || []).forEach(i => {
+                        existingMap[i.id] = i.data || {};
+                    });
+                } catch(e) {}
+
                 for (const st of payload.students) {
-                    st.script_id = scriptId;
-                    st.status = 'pending';
-                    st.attempts = 0;
-                    await api.db.post('students', st, st.rm + '_' + scriptId);
+                    const docId = st.rm + '_' + scriptId;
+                    const existing = existingMap[docId] || {};
+                    const merged = {
+                        ...existing,
+                        ...st,
+                        script_id: scriptId,
+                        status: existing.status || 'pending',
+                        attempts: existing.attempts || 0
+                    };
+                    await api.db.post('students', merged, docId);
                 }
-                return { success: true };
+                return { success: true, count: payload.students.length };
             }
             if (payload.action === 'admin_delete_student') {
                 await api.db.delete('students', payload.rm + '_' + payload.script_id);
@@ -1004,6 +1045,11 @@ MATERIAL BASE DA AULA:
             });
         }
 
+        let currentStudentsData = [];
+        let studentSortField = 'name'; // 'name' | 'turma' | 'grade'
+        let studentSortAsc = true;
+        let studentSearchFilter = '';
+
         async function loadStudents(scriptId) {
             window.currentStudentsScriptId = scriptId;
             const sObj = globalScripts.find(s => s.id.toString() === scriptId.toString());
@@ -1015,57 +1061,265 @@ MATERIAL BASE DA AULA:
             if (importText) importText.value = '';
             const importMsg = document.getElementById('import-students-msg');
             if (importMsg) importMsg.classList.add('hidden');
+            const searchInput = document.getElementById('students-search-input');
+            if (searchInput) searchInput.value = '';
+            studentSearchFilter = '';
 
             const tbody = document.getElementById('students-table-body');
-            tbody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-slate-400">Carregando...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-400"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Carregando alunos...</td></tr>';
             showSection('students');
             
             try {
-                const data = await fetchGAS({ action: 'admin_get_students', script_id: scriptId });
-                tbody.innerHTML = '';
-                if (data.students.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-slate-400">Nenhum aluno cadastrado no sistema. Importe a lista acima.</td></tr>';
+                // Busca em paralelo: alunos vinculados, sessões e cadastro global para fallback de turma
+                const [studentsRes, sessionsRes, allStudentsRes] = await Promise.all([
+                    api.db.get('students').catch(() => ({ items: [] })),
+                    api.db.get('sessions').catch(() => ({ items: [] })),
+                    api.db.get('students').catch(() => ({ items: [] }))
+                ]);
+
+                // Alunos vinculados a este roteiro específico
+                const rawStudents = (studentsRes.items || [])
+                    .filter(i => String(i.data.script_id) === String(scriptId))
+                    .map(i => ({ id: i.id, ...i.data }));
+
+                const badge = document.getElementById('students-count-badge');
+                if (badge) badge.innerText = `${rawStudents.length} aluno${rawStudents.length === 1 ? '' : 's'}`;
+
+                if (rawStudents.length === 0) {
+                    currentStudentsData = [];
+                    renderStudentsList();
                     return;
                 }
-                
-                // Sort students: those who started first, then alphabetically
-                data.students.sort((a, b) => {
-                   if (a.status !== 'not_started' && b.status === 'not_started') return -1;
-                   if (a.status === 'not_started' && b.status !== 'not_started') return 1;
-                   return a.name.localeCompare(b.name);
-                });
 
-                data.students.forEach(s => {
-                    let statusColor = 'text-slate-400';
-                    let statusText = 'Não Iniciado';
-                    
-                    if (s.status === 'completed') {
-                        statusColor = 'text-green-400';
-                        statusText = 'Concluído';
-                    } else if (s.status === 'active') {
-                        statusColor = 'text-yellow-400';
-                        statusText = s.attempts > 0 ? `Realizada Tentativa ${s.attempts}` : 'Em andamento';
+                const sessions = (sessionsRes.items || []).map(i => ({ session_id: i.id, ...i.data }));
+                const allStudentRecords = (allStudentsRes.items || []).map(i => i.data);
+
+                currentStudentsData = rawStudents.map(s => {
+                    const studentRm = String(s.rm || '').trim();
+                    let turma = (s.turma || s.serie || s.turma_serie || '').trim();
+                    if (!turma) {
+                        const fallback = allStudentRecords.find(o => String(o.rm || '').trim() === studentRm && (o.turma || o.serie));
+                        if (fallback) turma = (fallback.turma || fallback.serie || '').trim();
                     }
-                    
-                    const itemName = s.current_item_order > 0 ? `Item ${s.current_item_order}` : '-';
 
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-dark-800/50 transition-colors">
-                            <td class="py-3 font-mono text-slate-300">
-                                <div class="font-medium text-white">${s.name}</div>
-                                <div class="text-xs text-slate-500">RM: ${s.rm}</div>
-                            </td>
-                            <td class="py-3 text-slate-300">${itemName}</td>
-                            <td class="py-3 font-medium ${statusColor}">${statusText}</td>
-                            <td class="py-3">
-                                ${s.status !== 'not_started' ? `<button onclick="alert('Histórico agora está na aba Relatórios!')" class="text-indigo-400 hover:text-indigo-300 text-xs px-2 py-1 bg-indigo-400/10 rounded mr-2">Info</button>` : ``}
-                                <button onclick="deleteStudent('${s.rm}')" class="text-red-400 hover:text-red-300 text-xs px-2 py-1 bg-red-400/10 rounded"><i class="fa-solid fa-trash mr-1"></i>Excluir</button>
-                            </td>
-                        </tr>
-                    `;
+                    // Sessões deste aluno para este roteiro
+                    const mySessions = sessions.filter(sess => 
+                        String(sess.script_id) === String(scriptId) && 
+                        String(sess.student_rm || '').trim() === studentRm
+                    );
+
+                    let status = s.status || 'not_started';
+                    let grade = (s.final_grade !== undefined && s.final_grade !== null) ? s.final_grade : '-';
+                    let current_item_order = s.current_item_order || 0;
+                    let attempts = s.attempts || 0;
+                    let sessionId = null;
+
+                    if (mySessions.length > 0) {
+                        const completed = mySessions.filter(sess => sess.status === 'completed');
+                        if (completed.length > 0) {
+                            completed.sort((a, b) => (parseFloat(b.final_grade) || 0) - (parseFloat(a.final_grade) || 0));
+                            const best = completed[0];
+                            status = 'completed';
+                            grade = (best.final_grade !== undefined && best.final_grade !== null) ? parseFloat(best.final_grade).toFixed(1) : '-';
+                            current_item_order = best.current_item_order || (sObj && sObj.items ? sObj.items.length : 0);
+                            attempts = Math.max(attempts, completed.length);
+                            sessionId = best.session_id;
+                        } else {
+                            const latest = mySessions[mySessions.length - 1];
+                            status = 'active';
+                            grade = (latest.final_grade !== undefined && latest.final_grade !== null) ? parseFloat(latest.final_grade).toFixed(1) : '-';
+                            current_item_order = latest.current_item_order || 1;
+                            sessionId = latest.session_id;
+                        }
+                    }
+
+                    return {
+                        name: s.name || '',
+                        rm: studentRm,
+                        turma: turma,
+                        status: status,
+                        grade: grade,
+                        current_item_order: current_item_order,
+                        attempts: attempts,
+                        session_id: sessionId
+                    };
                 });
+
+                renderStudentsList();
             } catch (err) {
-                tbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-red-400">Erro: ${err.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-red-400">Erro ao carregar alunos: ${escHtml(err.message)}</td></tr>`;
+            }
+        }
+
+        function sortStudentsBy(field) {
+            if (studentSortField === field) {
+                studentSortAsc = !studentSortAsc;
+            } else {
+                studentSortField = field;
+                // Para nota, inicia decrescente (maior para menor); para nome e turma, crescente
+                studentSortAsc = (field === 'grade') ? false : true;
+            }
+            renderStudentsList();
+        }
+
+        function filterStudentsTable() {
+            const input = document.getElementById('students-search-input');
+            studentSearchFilter = input ? input.value : '';
+            renderStudentsList();
+        }
+
+        function renderStudentsList() {
+            const tbody = document.getElementById('students-table-body');
+            if (!tbody) return;
+
+            // Atualiza ícones e destaque dos cabeçalhos
+            ['name', 'turma', 'grade'].forEach(f => {
+                const iconEl = document.getElementById(`sort-icon-${f}`);
+                const thEl = document.getElementById(`th-sort-${f}`);
+                if (iconEl) {
+                    if (studentSortField === f) {
+                        iconEl.innerHTML = studentSortAsc 
+                            ? '<i class="fa-solid fa-sort-up text-indigo-400"></i>' 
+                            : '<i class="fa-solid fa-sort-down text-indigo-400"></i>';
+                    } else {
+                        iconEl.innerHTML = '<i class="fa-solid fa-sort text-slate-600"></i>';
+                    }
+                }
+                if (thEl) {
+                    if (studentSortField === f) {
+                        thEl.classList.add('text-indigo-400');
+                        thEl.classList.remove('text-slate-400');
+                    } else {
+                        thEl.classList.remove('text-indigo-400');
+                        thEl.classList.add('text-slate-400');
+                    }
+                }
+            });
+
+            if (!currentStudentsData || currentStudentsData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-400"><i class="fa-solid fa-users text-2xl text-slate-600 block mb-2"></i>Nenhum aluno cadastrado neste roteiro.<br><span class="text-xs text-slate-500">Cole a lista do Excel no painel acima e clique em "Salvar Alunos".</span></td></tr>';
+                return;
+            }
+
+            const query = (studentSearchFilter || '').trim().toLowerCase();
+            let displayList = currentStudentsData.filter(s => {
+                if (!query) return true;
+                const name = (s.name || '').toLowerCase();
+                const rm = (s.rm || '').toLowerCase();
+                const turma = (s.turma || '').toLowerCase();
+                return name.includes(query) || rm.includes(query) || turma.includes(query);
+            });
+
+            if (displayList.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-400">Nenhum aluno encontrado para o filtro informado.</td></tr>';
+                return;
+            }
+
+            displayList.sort((a, b) => {
+                if (studentSortField === 'name') {
+                    const cmp = (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
+                    return studentSortAsc ? cmp : -cmp;
+                }
+                if (studentSortField === 'turma') {
+                    const tA = (a.turma || '').trim();
+                    const tB = (b.turma || '').trim();
+                    if (!tA && tB) return 1;
+                    if (tA && !tB) return -1;
+                    const cmp = tA.localeCompare(tB, 'pt-BR', { numeric: true, sensitivity: 'base' });
+                    if (cmp !== 0) return studentSortAsc ? cmp : -cmp;
+                    return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
+                }
+                if (studentSortField === 'grade') {
+                    const gA = (a.grade !== null && a.grade !== undefined && a.grade !== '-' && !isNaN(parseFloat(a.grade))) ? parseFloat(a.grade) : null;
+                    const gB = (b.grade !== null && b.grade !== undefined && b.grade !== '-' && !isNaN(parseFloat(b.grade))) ? parseFloat(b.grade) : null;
+                    if (gA === null && gB !== null) return 1;
+                    if (gA !== null && gB === null) return -1;
+                    if (gA === null && gB === null) {
+                        return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
+                    }
+                    const diff = gA - gB;
+                    if (diff !== 0) return studentSortAsc ? diff : -diff;
+                    return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
+                }
+                return 0;
+            });
+
+            const sObj = globalScripts.find(sc => sc.id.toString() === (window.currentStudentsScriptId || '').toString());
+            const totalItems = (sObj && sObj.items) ? sObj.items.length : 0;
+
+            let html = '';
+            displayList.forEach(s => {
+                let statusBadge = 'bg-slate-500/10 text-slate-400 border border-slate-500/20';
+                let statusText = '<i class="fa-solid fa-clock mr-1"></i>Não Iniciado';
+
+                if (s.status === 'completed') {
+                    statusBadge = 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+                    statusText = '<i class="fa-solid fa-check mr-1"></i>Concluído';
+                } else if (s.status === 'active' || s.status === 'in_progress') {
+                    statusBadge = 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+                    statusText = s.attempts > 1 ? `<i class="fa-solid fa-arrows-rotate mr-1"></i>Tentativa ${s.attempts}` : '<i class="fa-solid fa-spinner fa-spin mr-1"></i>Em andamento';
+                }
+
+                let progressText = '-';
+                if (s.status === 'completed') {
+                    progressText = totalItems > 0 ? `${totalItems}/${totalItems} (100%)` : 'Concluído';
+                } else if (s.current_item_order > 0) {
+                    progressText = totalItems > 0 ? `Etapa ${s.current_item_order} de ${totalItems}` : `Item ${s.current_item_order}`;
+                }
+
+                let gradeHtml = '<span class="text-slate-500 text-xs">-</span>';
+                if (s.grade && s.grade !== '-') {
+                    const numGrade = parseFloat(s.grade);
+                    const colorClass = numGrade >= 6.0 ? 'text-emerald-400' : 'text-amber-400';
+                    gradeHtml = `<span class="font-bold text-sm ${colorClass}">${numGrade.toFixed(1)}</span>`;
+                }
+
+                const turmaHtml = s.turma 
+                    ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-300 border border-blue-500/20">${escHtml(s.turma)}</span>`
+                    : `<span class="text-slate-500 text-xs italic">-</span>`;
+
+                html += `
+                    <tr class="hover:bg-dark-800/50 transition-colors">
+                        <td class="py-3 font-mono text-slate-300">
+                            <div class="font-medium text-white">${escHtml(s.name)}</div>
+                            <div class="text-xs text-slate-500">RM: ${escHtml(s.rm)}</div>
+                        </td>
+                        <td class="py-3 text-slate-300">${turmaHtml}</td>
+                        <td class="py-3 text-slate-300 text-xs font-mono">${progressText}</td>
+                        <td class="py-3 font-medium"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs ${statusBadge}">${statusText}</span></td>
+                        <td class="py-3">${gradeHtml}</td>
+                        <td class="py-3 text-right whitespace-nowrap pr-2">
+                            ${s.session_id ? `<button onclick="openStudentReportFromList('${s.session_id}')" class="text-indigo-400 hover:text-indigo-300 text-xs px-2.5 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 rounded font-medium mr-1.5 transition-colors" title="Ver relatório do aluno"><i class="fa-solid fa-chart-simple mr-1"></i>Relatório</button>` : ''}
+                            <button onclick="deleteStudent('${escHtml(s.rm)}')" class="text-red-400 hover:text-red-300 text-xs px-2 py-1 bg-red-400/10 hover:bg-red-400/20 rounded font-medium transition-colors" title="Excluir aluno"><i class="fa-solid fa-trash mr-1"></i>Excluir</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        async function openStudentReportFromList(sessionId) {
+            if (!sessionId) return;
+            try {
+                if (!globalReports || globalReports.length === 0) {
+                    const data = await fetchGAS({ action: 'admin_get_reports' });
+                    globalReports = data.reports || [];
+                }
+                let idx = globalReports.findIndex(r => r.session_id === sessionId);
+                if (idx === -1) {
+                    const sRes = await api.db.get('sessions', sessionId);
+                    if (sRes && sRes.data) {
+                        globalReports.push({ session_id: sessionId, ...sRes.data });
+                        idx = globalReports.length - 1;
+                    }
+                }
+                if (idx !== -1) {
+                    showReportDetails(idx);
+                } else {
+                    alert('Relatório não encontrado para esta sessão.');
+                }
+            } catch(err) {
+                alert('Erro ao abrir relatório: ' + err.message);
             }
         }
 
@@ -1082,19 +1336,56 @@ MATERIAL BASE DA AULA:
             const studentsToSave = [];
             
             lines.forEach(line => {
-                const parts = line.split('\t');
-                if (parts.length >= 3) {
-                    const name = parts[1].trim();
-                    const rm = parts[2].trim();
-                    if (name && rm) {
-                        studentsToSave.push({ name: name, rm: rm });
+                line = line.trim();
+                if (!line) return;
+                
+                let parts = line.split('\t');
+                if (parts.length < 3 && line.includes(';')) parts = line.split(';');
+                else if (parts.length < 3 && line.includes(',')) parts = line.split(',');
+
+                let name = '';
+                let rm = '';
+                let turma = '';
+
+                if (parts.length >= 4) {
+                    // Padrão Excel: Número, Nome, RM, Série/Turma
+                    if (/^\d+$/.test(parts[0].trim())) {
+                        name = parts[1].trim();
+                        rm = parts[2].trim();
+                        turma = parts[3].trim();
+                    } else {
+                        // Nome, RM, Série/Turma, Extra...
+                        name = parts[0].trim();
+                        rm = parts[1].trim();
+                        turma = parts[2].trim();
                     }
+                } else if (parts.length === 3) {
+                    if (/^\d+$/.test(parts[0].trim())) {
+                        // Número, Nome, RM (sem turma)
+                        name = parts[1].trim();
+                        rm = parts[2].trim();
+                    } else {
+                        // Nome, RM, Série/Turma
+                        name = parts[0].trim();
+                        rm = parts[1].trim();
+                        turma = parts[2].trim();
+                    }
+                } else if (parts.length === 2) {
+                    name = parts[0].trim();
+                    rm = parts[1].trim();
+                }
+
+                // Ignora linha de cabeçalho
+                if (name.toLowerCase() === 'nome' || rm.toLowerCase() === 'rm') return;
+
+                if (name && rm) {
+                    studentsToSave.push({ name: name, rm: rm, turma: turma });
                 }
             });
             
             if (studentsToSave.length === 0) {
                 msg.className = "mt-3 text-sm text-red-400";
-                msg.innerText = "Nenhum aluno válido encontrado. Certifique-se de colar do Excel com as colunas corretas (Número, Nome, RM, Série).";
+                msg.innerText = "Nenhum aluno válido encontrado. Certifique-se de colar do Excel com as colunas corretas (Número, Nome, RM, Série/Turma).";
                 msg.classList.remove('hidden');
                 btn.innerHTML = '<i class="fa-solid fa-file-import mr-2"></i>Salvar Alunos';
                 return;
@@ -1108,7 +1399,7 @@ MATERIAL BASE DA AULA:
                 });
                 
                 msg.className = "mt-3 text-sm text-green-400";
-                msg.innerText = `${data.count} aluno(s) adicionado(s) com sucesso!`;
+                msg.innerText = `${studentsToSave.length} aluno(s) salvo(s) com sucesso!`;
                 msg.classList.remove('hidden');
                 document.getElementById('import-students-text').value = '';
                 
@@ -1447,7 +1738,6 @@ MATERIAL BASE DA AULA:
         }
         
         // ===== Relatório individual do aluno (IA) =====
-        const escHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         let openReportSessionId = null;
 
         function reportActionHtml(r) {
